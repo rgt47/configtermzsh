@@ -10,7 +10,7 @@ description: "I didn't really know how much time I was losing
   Kitty and Zsh from scratch. Here's what I learned."
 image: "media/images/hero.png"
 document-type: "blog"
-draft: true
+draft: false
 execute:
   echo: true
   warning: false
