@@ -4,7 +4,7 @@ subtitle: "Setting up Kitty terminal, Zsh shell, and
   productivity tools for everyday data science work"
 author: "Ronald G. Thomas"
 date: "2025-07-24"
-categories: [Command Line, Development Tools, Data Science]
+categories: [terminal, zsh, macos, configuration, git, neovim]
 description: "I didn't really know how much time I was losing
   to default terminal settings until I sat down and configured
   Kitty and Zsh from scratch. Here's what I learned."
