@@ -82,8 +82,7 @@ how to keep the whole thing portable -- should transfer.
 I'm documenting my learning process here. If you spot errors or
 have better approaches, please let me know.
 
-![Vim editor with syntax highlighting in a dark
-terminal](media/images/ambiance1.png){.img-fluid}
+![](media/images/terminal-logo.png){.img-fluid width=30% fig-align="center"}
 
 *A well-configured editor and terminal working together --
 the goal of this entire setup.*
