@@ -3,7 +3,8 @@
     "allow": [
       "Bash(gh run view:*)",
       "Bash(curl:*)",
-      "Bash(zzc analysis:*)"
+      "Bash(zzc analysis:*)",
+      "Bash(bash:*)"
     ],
     "deny": [],
     "ask": []
