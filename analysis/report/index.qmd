@@ -75,8 +75,8 @@ The following pain points motivated this configuration:
    defaults, and useful aliases.
 4. Set up Readline for consistent vi-mode keybindings across all
    CLI tools (R, Python, database clients).
-5. Implement productivity shortcuts -- directory jumping,
-   fzf-powered file finding, and safety aliases -- that reduce
+5. Implement productivity shortcuts (directory jumping,
+   fzf-powered file finding, and safety aliases) that reduce
    repetitive typing.
 6. Configure cross-platform loading so the same dotfiles work on
    macOS and Linux without modification.
@@ -209,8 +209,8 @@ inactive_border_width 1pt
 draw_minimal_borders yes
 ```
 
-The initial window size gives me a reasonable starting point
-that I then resize as needed. The padding and margin settings
+The initial window size provides a reasonable starting point
+that can be resized as needed. The padding and margin settings
 add breathing room around the terminal content, which reduces
 eye strain during long sessions. Minimal borders keep the
 interface clean when using split panes.
@@ -295,7 +295,7 @@ kitty @ set-window-title "Model-XGBoost-Experiment-1"
 ```
 
 This is particularly useful when running multiple training jobs
-and I need to identify which terminal corresponds to which
+and needing to identify which terminal corresponds to which
 experiment.
 
 ## Font Configuration
@@ -355,7 +355,7 @@ macos_quit_when_last_window_closed yes
 confirm_os_window_close 1
 ```
 
-On macOS, `macos_option_as_alt` lets me use Option as the Alt
+On macOS, `macos_option_as_alt` allows using Option as the Alt
 key, which is necessary for many terminal applications that
 expect Alt+key combinations. The quit and confirm settings
 prevent accidental closure of important terminal sessions.
@@ -376,33 +376,33 @@ switching themes easy without editing the main configuration. Run
 
 ---
 
-The settings that made the largest difference for me were
-`scrollback_lines 50000` (I no longer lose model training
-output), `input_delay 0` (the terminal feels instant when
+The settings that make the largest difference are
+`scrollback_lines 50000` (model training output is no longer
+lost), `input_delay 0` (the terminal feels instant when
 monitoring long-running processes), and `copy_on_select
 clipboard` (selecting text copies it automatically, which saves
 a surprising number of keystrokes per day).
 
 Kitty's graphics protocol deserves a brief mention. After
 installing `matplotlib-backend-kitty` (`pip install
-matplotlib-backend-kitty`), you can set the environment variable
-`MPLBACKEND=module://matplotlib-backend-kitty` and matplotlib
-plots will render inline. For quick image inspection, `kitten
-icat plot.png` displays any image directly in the terminal. I
-use this constantly when reviewing generated figures.
+matplotlib-backend-kitty`), the environment variable
+`MPLBACKEND=module://matplotlib-backend-kitty` causes matplotlib
+plots to render inline. For quick image inspection, `kitten
+icat plot.png` displays any image directly in the terminal. This
+proves useful when reviewing generated figures.
 
 ![Neofetch system information displayed in a
 terminal](media/images/ambiance2.png){.img-fluid}
 
-*System information via neofetch -- a quick way to verify your
-terminal's font rendering and colour support.*
+*System information via neofetch: a quick way to verify
+terminal font rendering and colour support.*
 
 ## Zsh Shell Configuration
 
-With Kitty configured, the next layer is the shell itself. My
+With Kitty configured, the next layer is the shell itself. This
 `.zshrc` is organised into twelve numbered sections, each
-handling one concern. I will walk through each section and
-explain the reasoning.
+handling one concern. The following subsections walk through each
+portion and explain the reasoning.
 
 A key design principle: every optional dependency is wrapped in
 a conditional check. If a tool like `autojump` or `ripgrep` is
@@ -420,7 +420,8 @@ throwing errors.
 Sensitive information (API keys, tokens, database credentials)
 lives in a separate `~/.env` file that is not version-controlled.
 This single line sources it if it exists and does nothing if it
-does not. I never commit secrets to my dotfiles repository.
+does not. Secrets should never be committed to a dotfiles
+repository.
 
 ### Core Shell Configuration
 
@@ -428,13 +429,13 @@ does not. I never commit secrets to my dotfiles repository.
 export EDITOR="vim"
 export VIMINIT='source ~/.config/vim/vimrc'
 export DOCKER_BUILDKIT=1
-export GITHUB_USER="rgt47"
+export GITHUB_USER="mygit"
 
 export TEXINPUTS=".:$HOME/shr/images:$HOME/shr:"
 export BIBINPUTS=".:$HOME/shr/bibfiles:$HOME/shr"
 ```
 
-These exports set my default editor and configure paths for
+These exports set the default editor and configure paths for
 LaTeX. The `DOCKER_BUILDKIT=1` enables Docker's improved build
 system, which provides better caching and parallel builds. The
 `GITHUB_USER` variable is used by various scripts that interact
@@ -451,16 +452,17 @@ else
 fi
 ```
 
-This is the first example of cross-platform logic. On macOS, I
-include Homebrew's paths and throttle automatic updates to once
-per week (604800 seconds). On Linux, I skip the Homebrew paths
-since they do not exist. The `$OSTYPE` variable is set by Zsh
-and reliably distinguishes between operating systems.
+This is the first example of cross-platform logic. On macOS, the
+configuration includes Homebrew's paths and throttles automatic
+updates to once per week (604800 seconds). On Linux, the Homebrew
+paths are omitted since they do not exist. The `$OSTYPE` variable
+is set by Zsh and reliably distinguishes between operating
+systems.
 
-Note the security fix: I removed a leading `.` from PATH that
-was present in an earlier version. Having `.` in PATH means the
-shell will execute programs in the current directory, which is a
-security risk if you `cd` into an untrusted directory.
+Note the security consideration: a leading `.` should not appear
+in PATH. Having `.` in PATH means the shell will execute programs
+in the current directory, which is a security risk when changing
+into untrusted directories.
 
 ### Core Shell Options
 
@@ -475,19 +477,20 @@ bindkey -s -- '--' '_'
 ```
 
 The `cdpath` variable is one of Zsh's most underrated features.
-With this setting, I can type `cd myproject` from anywhere and
-Zsh will search `~/Dropbox/prj/myproject` automatically. Combined
-with `auto_cd` (which lets me omit `cd` entirely and just type
-a directory name), navigation becomes remarkably fast.
+With this setting, typing `cd myproject` from anywhere causes
+Zsh to search `~/Dropbox/prj/myproject` automatically. Combined
+with `auto_cd` (which permits omitting `cd` entirely and just
+typing a directory name), navigation becomes remarkably fast.
 
-The `auto_pushd` option maintains a directory stack that I can
-navigate with numbered aliases (`1`, `2`, `3`, etc.) defined
+The `auto_pushd` option maintains a directory stack that can be
+navigated with numbered aliases (`1`, `2`, `3`, etc.) defined
 later. `PROMPT_SUBST` enables variable expansion in the prompt.
 
-I use vi mode (`bindkey -v`) because my muscle memory expects
-hjkl navigation and Escape to exit insert mode. The `--` to `_`
-binding is a small convenience: typing two hyphens produces an
-underscore, which is faster for snake_case identifiers.
+The vi mode (`bindkey -v`) is configured for users whose muscle
+memory expects hjkl navigation and Escape to exit insert mode.
+The `--` to `_` binding is a small convenience: typing two
+hyphens produces an underscore, which is faster for snake_case
+identifiers.
 
 ### History Management
 
@@ -498,18 +501,18 @@ SAVEHIST=100000
 setopt SHARE_HISTORY HIST_IGNORE_DUPS INC_APPEND_HISTORY HIST_VERIFY
 ```
 
-I keep 100,000 lines of history because disk space is cheap and
-I frequently need to recall commands from weeks ago. The options
-work together:
+Keeping 100,000 lines of history is reasonable because disk space
+is cheap and recalling commands from weeks ago is frequently
+necessary. The options work together:
 
 - `SHARE_HISTORY` syncs history across all terminal sessions in
-  real time (controversial -- some people find this disorienting)
+  real time (some users find this disorienting)
 - `HIST_IGNORE_DUPS` avoids cluttering history with repeated
   commands
 - `INC_APPEND_HISTORY` writes each command immediately rather
   than at session end
 - `HIST_VERIFY` shows the expanded command before executing when
-  using history substitution (e.g., `!!`), giving me a chance to
+  using history substitution (e.g., `!!`), providing a chance to
   review before running
 
 ### Completion System
@@ -530,7 +533,7 @@ completion dump file and only regenerates it if it is more than
 24 hours old. The result is noticeably faster shell startup.
 
 The `compdef _dirs d` line tells Zsh to use directory completion
-for my custom `d` function defined later.
+for the custom `d` function defined later.
 
 ### Prompt and Git Integration
 
@@ -553,8 +556,8 @@ This prompt displays:
 
 The `vcs_info` approach is lightweight compared to Oh My Zsh's
 git plugin. It runs in the `precmd` hook before each prompt and
-extracts just the branch name. This has saved me from committing
-to the wrong branch countless times.
+extracts just the branch name. This helps prevent committing to
+the wrong branch.
 
 ### Plugin Management
 
@@ -575,8 +578,8 @@ fi
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=red,bold,underline'
 ```
 
-I use three plugins, each addressing a specific friction point
-in command-line work:
+Three plugins are employed here, each addressing a specific
+friction point in command-line work:
 
 **autojump** maintains a database of directories you visit,
 weighted by frequency. After using it for a few days, you can
@@ -585,20 +588,19 @@ typing the full path. It learns from your behaviour: the more
 often you visit a directory, the higher it ranks in fuzzy
 matching. Install with `brew install autojump` (macOS) or
 `apt install autojump` (Ubuntu). The only downside is the
-initial learning period -- it takes a week or two of normal
-usage before the database becomes useful.
+initial learning period; it takes a week or two of normal usage
+before the database becomes useful.
 
 **zsh-autosuggestions** displays ghost text showing a prediction
-of what you might type next, based on your command history. As
-you type `git`, it might suggest `git status` in grey text. Press
-the right arrow key to accept the entire suggestion, or press
-`Ctrl+E` to accept just to the end of the current word. This
-plugin has dramatically reduced my typing for repetitive
-commands. Install with `brew install zsh-autosuggestions`
-(macOS) or clone from GitHub on Linux. The
-`ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE` setting controls how
-suggestions appear; I use red bold underline to make them
-visually distinct from my actual typing.
+of what the user might type next, based on command history. As
+typing begins with `git`, it might suggest `git status` in grey
+text. Pressing the right arrow key accepts the entire suggestion,
+or `Ctrl+E` accepts just to the end of the current word. This
+plugin dramatically reduces typing for repetitive commands.
+Install with `brew install zsh-autosuggestions` (macOS) or clone
+from GitHub on Linux. The `ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE`
+setting controls how suggestions appear; red bold underline makes
+them visually distinct from actual typing.
 
 **zsh-syntax-highlighting** provides real-time syntax
 highlighting as you type. Valid commands appear in green,
@@ -616,7 +618,7 @@ essential for sharing the same `.zshrc` across machines where
 not all plugins are installed. If autojump is not present, that
 line does nothing and the shell continues to load.
 
-On macOS, I cache `BREW_PREFIX` to avoid calling `brew --prefix`
+On macOS, caching `BREW_PREFIX` avoids calling `brew --prefix`
 on every shell startup. Without caching, `brew --prefix` adds
 roughly 200-400ms to shell startup time, which is noticeable
 when opening new terminal tabs. Hardcoding `/opt/homebrew`
@@ -624,8 +626,8 @@ when opening new terminal tabs. Hardcoding `/opt/homebrew`
 
 ![A calm workspace with soft lighting](media/images/softmood.png){.img-fluid}
 
-*The rhythm of configuration: small decisions that compound into
-a seamless workflow.*
+*The rhythm of configuration: small decisions compound into a
+seamless workflow.*
 
 ### FZF Configuration
 
@@ -655,7 +657,7 @@ alias 4='cd -4'
 alias 5='cd -5'
 ```
 
-The `-` alias lets me type just `-` to return to the previous
+The `-` alias allows typing just `-` to return to the previous
 directory. The `...` global alias expands to `../..` anywhere in
 a command. The numbered aliases navigate the directory stack
 maintained by `auto_pushd`.
@@ -681,9 +683,9 @@ alias grep='grep --color=auto'
 ```
 
 macOS ships with BSD `ls`, which uses `-G` for colour. Linux
-uses GNU `ls`, which uses `--color=auto`. If I have installed
-GNU coreutils on macOS (via `brew install coreutils`), I prefer
-`gls` for consistency. The `lt` alias uses `eza` (a modern `ls`
+uses GNU `ls`, which uses `--color=auto`. If GNU coreutils is
+installed on macOS (via `brew install coreutils`), `gls` provides
+consistency. The `lt` alias uses `eza` (a modern `ls`
 replacement) to list files sorted by modification time.
 
 ### Application Shortcuts
@@ -701,11 +703,11 @@ alias vz='vim ~/Dropbox/dotfiles/zshrc'
 alias sz='source ~/.zshrc'
 ```
 
-These are simple shortcuts for programs I use frequently. The
+These are simple shortcuts for frequently used programs. The
 `R` alias starts R without the startup message and without
 prompting to save the workspace on exit. `ZZ` mirrors vim's exit
-command. The config editing aliases (`vc`, `vz`, `sz`) make it
-fast to edit and reload configuration files.
+command. The config editing aliases (`vc`, `vz`, `sz`) make
+editing and reloading configuration files efficient.
 
 ### Safety Aliases
 
@@ -714,17 +716,17 @@ alias tp='trash-put -v'
 # alias rm='echo "This is not the command you are looking for."; false'
 ```
 
-After accidentally deleting a dataset early in my career, I
-adopted `trash-put` from the `trash-cli` package. The `tp` alias
-moves files to the trash rather than deleting them permanently.
-I keep the `rm` override commented out because it breaks scripts
+After accidentally deleting important data, many users adopt
+`trash-put` from the `trash-cli` package. The `tp` alias moves
+files to the trash rather than deleting them permanently. The
+`rm` override is kept commented out because it breaks scripts
 that legitimately need to delete files, but uncommenting it
 provides an extra safety net during interactive use.
 
 ![UCSD Geisel Library at dusk](media/images/ucsd-geisel-library.jpg){.img-fluid}
 
-*Configuration as architecture: each layer built deliberately on
-the one below.*
+*Configuration as architecture, with each layer built
+deliberately upon the one below.*
 
 ### Fuzzy Finding Functions
 
@@ -772,7 +774,8 @@ navigation:
 
 The pattern is consistent: use `ripgrep` to list files, pipe to
 `fzf` for selection, then take action on the result. These
-functions have largely replaced my use of graphical file managers.
+functions can largely replace graphical file managers for many
+workflows.
 
 ### Git Workflow Function
 
@@ -841,7 +844,7 @@ The `gz` function implements a guided git workflow: stage all
 changes, show a summary, prompt for a conventional commit type
 and optional scope, generate a commit message, and push. This
 enforces consistent commit message formatting without requiring
-me to remember the exact syntax each time.
+the user to remember the exact syntax each time.
 
 ### External Tool Integration
 
@@ -884,9 +887,9 @@ unset __conda_setup
 ```
 
 This block is generated by `conda init` and handles setting up
-the Conda environment. I have kept the paths platform-aware,
-though the initialization block itself uses hardcoded paths that
-would need editing on a different machine.
+the Conda environment. The paths are kept platform-aware, though
+the initialization block itself uses hardcoded paths that would
+need editing on a different machine.
 
 ### Project Navigation (ZZCOLLAB)
 
@@ -918,7 +921,7 @@ mr() {
 }
 ```
 
-These functions support my research compendium workflow. From
+These functions support a research compendium workflow. From
 anywhere inside a project, single-letter commands navigate to
 standard directories: `a` for analysis, `s` for scripts, `p` for
 the report, `f` for figures, `r` for R source files, and `0` for
@@ -927,22 +930,23 @@ subdirectory.
 
 The `_zzcollab_root` helper walks up the directory tree looking
 for a `DESCRIPTION` file (standard R package marker) or a
-`.zzcollab_project` file (my project marker). This pattern lets
-me define project-aware commands without hardcoding paths.
+`.zzcollab_project` file (a project marker). This pattern allows
+project-aware commands without hardcoding paths.
 
 ---
 
-The numbered sections are deliberate. When I need to add a new
-alias, I go straight to the aliases section. When a plugin
-breaks, I look at plugin management. This organisational
-discipline saves time every time I edit the file.
+The numbered sections are deliberate. When adding a new alias,
+navigating directly to the aliases section is straightforward.
+When a plugin breaks, the plugin management section is the
+obvious location. This organisational discipline saves time each
+time the file requires editing.
 
 ![Git logo](media/images/git-logo.png){.img-fluid width=40%
 fig-align="center"}
 
 ## Git Configuration
 
-Git is central to the workflow described above -- the `gz`
+Git is central to the workflow described above: the `gz`
 function, the branch display in the prompt, and general version
 control. The configuration lives in `~/.gitconfig`.
 
@@ -955,8 +959,8 @@ control. The configuration lives in `~/.gitconfig`.
     defaultBranch = main
 
 [user]
-    name = r. glenn thomas
-    email = rgthomas@ucsd.edu
+    name = Your Name
+    email = user@example.com
 
 [core]
     editor = nvim
@@ -965,7 +969,7 @@ control. The configuration lives in `~/.gitconfig`.
 
 The `defaultBranch` setting ensures new repositories start with
 `main` rather than `master`. The `excludesfile` points to a
-global gitignore that applies to all repositories -- useful for
+global gitignore that applies to all repositories, useful for
 editor backup files, OS metadata like `.DS_Store`, and other
 files that should never be committed regardless of project.
 
@@ -979,12 +983,12 @@ files that should never be committed regardless of project.
     quiet = true
 ```
 
-I use `rebase = false` to preserve merge commits when pulling.
-Some teams prefer `rebase = true` for a linear history, but I
-find merge commits useful for understanding when changes were
-integrated. The `quiet = true` setting suppresses the commit
-summary output, which I find redundant given the `gz` function
-already shows what was committed.
+The setting `rebase = false` preserves merge commits when pulling.
+Some teams prefer `rebase = true` for a linear history, but merge
+commits are useful for understanding when changes were integrated.
+The `quiet = true` setting suppresses the commit summary output,
+which is redundant given the `gz` function already shows what was
+committed.
 
 ### GitHub Authentication
 
@@ -999,7 +1003,7 @@ already shows what was committed.
 ```
 
 Rather than managing SSH keys or personal access tokens
-manually, I delegate authentication to the GitHub CLI (`gh`).
+manually, authentication is delegated to the GitHub CLI (`gh`).
 After running `gh auth login` once, Git uses `gh` as a
 credential helper for all GitHub operations. The empty `helper =`
 line clears any previously configured helpers before adding the
@@ -1049,12 +1053,11 @@ fig-align="center"}
 
 ## Readline Configuration
 
-Many command-line tools -- including R, Python's REPL, and
-various database clients -- use the GNU Readline library for
-line editing. By default, Readline uses Emacs-style keybindings,
-which conflicts with the vi mode configured in Zsh. The
-`.inputrc` file brings consistency across all Readline-based
-tools.
+Many command-line tools (including R, Python's REPL, and various
+database clients) use the GNU Readline library for line editing.
+By default, Readline uses Emacs-style keybindings, which
+conflicts with the vi mode configured in Zsh. The `.inputrc` file
+brings consistency across all Readline-based tools.
 
 `~/.inputrc`:
 
@@ -1097,8 +1100,8 @@ set history-preserve-point on
 
 The `history-preserve-point` setting keeps the cursor position
 when navigating history. The key bindings make the up and down
-arrows search history for commands starting with whatever you
-have already typed -- the same behaviour as Zsh's
+arrows search history for commands starting with whatever has
+already been typed, the same behaviour as Zsh's
 history-substring-search.
 
 ### Bell and Display
@@ -1108,36 +1111,36 @@ set bell-style none
 set enable-bracketed-paste on
 ```
 
-I disable the terminal bell because I find it disruptive. The
-bracketed paste setting prevents pasted text from being
-interpreted as commands until you press Enter, which is a
-security feature when pasting from untrusted sources.
+Disabling the terminal bell removes a disruptive auditory
+notification. The bracketed paste setting prevents pasted text
+from being interpreted as commands until Enter is pressed, which
+is a security feature when pasting from untrusted sources.
 
 ---
 
-With these four configuration files -- `kitty.conf`, `.zshrc`,
-`.gitconfig`, and `.inputrc` -- the command-line environment
+With these four configuration files (`kitty.conf`, `.zshrc`,
+`.gitconfig`, and `.inputrc`), the command-line environment
 becomes consistent and efficient across all tools.
 
 # Putting It Together: A Typical Session
 
-With the configuration in place, here is what a typical work
-session looks like:
+With the configuration in place, a typical work session
+proceeds as follows:
 
-1. I open Kitty and type `prj` (thanks to `cdpath`, this
-   expands to `~/Dropbox/prj`)
-2. I type `j analysis` and autojump takes me to my most recent
+1. Open Kitty and type `prj` (thanks to `cdpath`, this expands
+   to `~/Dropbox/prj`)
+2. Type `j analysis` and autojump navigates to the most recent
    analysis project
-3. I type `0` to jump to the project root, then `s` for scripts
-4. I type `rr`, fzf shows me all R files, I select one and it
-   opens in vim
-5. After editing, I type `gz` to stage, commit with a
-   conventional message, and push
-6. If I need to check a plot, `pp` finds and opens the PDF
+3. Type `0` to jump to the project root, then `s` for scripts
+4. Type `rr`, fzf displays all R files, select one and it opens
+   in vim
+5. After editing, type `gz` to stage, commit with a conventional
+   message, and push
+6. To check a plot, `pp` finds and opens the PDF
 
-The individual pieces -- cdpath, autojump, fzf functions, the
-git workflow -- each save a few seconds. Over hundreds of
-commands per day, the cumulative effect is significant.
+The individual pieces (cdpath, autojump, fzf functions, the git
+workflow) each save a few seconds. Over hundreds of commands per
+day, the cumulative effect is significant.
 
 # Checking Our Work: Verifying the Configuration
 
@@ -1209,31 +1212,31 @@ exists and that the terminal supports cursor shape changes
 
 If any plugin fails to load, the `[[ -f ... ]] && source ...`
 guards mean Zsh will continue without error. This is deliberate:
-I would rather have a working shell with a missing plugin than a
-broken shell.
+a working shell with a missing plugin is preferable to a broken
+shell.
 
 ## Things to Watch Out For
 
-1. **Duplicate key bindings.** I initially defined the same
-   Kitty keybinding in both the basic and data-science sections
-   of my config. Kitty uses the last definition, so the earlier
-   one was silently ignored. Merge your config into one file to
-   avoid this.
+1. **Duplicate key bindings.** Defining the same Kitty
+   keybinding in both basic and data-science sections is a
+   common mistake. Kitty uses the last definition, so the
+   earlier one is silently ignored. Merging the configuration
+   into one file avoids this.
 
 2. **Plugin startup cost.** Loading `zsh-syntax-highlighting`,
    `zsh-autosuggestions`, and `autojump` adds roughly 100-200ms
-   to shell startup. If you notice lag when opening new
-   terminals, profile with `zsh -xv` and consider lazy-loading.
+   to shell startup. If lag appears when opening new terminals,
+   profile with `zsh -xv` and consider lazy-loading.
 
-3. **`cdpath` collisions.** If two directories in your `cdpath`
+3. **`cdpath` collisions.** If two directories in `cdpath`
    contain subdirectories with the same name, Zsh picks the
-   first match. I once spent twenty minutes wondering why `cd
-   data` took me to the wrong project.
+   first match. This can cause unexpected navigation to the
+   wrong project.
 
 4. **Conda and PATH pollution.** The conda initialisation block
-   modifies `$PATH` every time a shell starts. If you open many
-   terminal tabs, check that `$PATH` has not accumulated
-   duplicate entries with `echo $PATH | tr ':' '\n' | sort |
+   modifies `$PATH` every time a shell starts. Opening many
+   terminal tabs can cause `$PATH` to accumulate duplicate
+   entries. Check with `echo $PATH | tr ':' '\n' | sort |
    uniq -d`.
 
 5. **Font fallback on Linux.** FiraCode Nerd Font Mono must be
@@ -1244,8 +1247,8 @@ broken shell.
 ![A lofi aesthetic workspace with warm lighting and a laptop
 screen](media/images/ambiance3.jpg){.img-fluid}
 
-*The calm focus of a well-tuned workspace -- what a
-thoughtfully configured terminal makes possible.*
+*The calm focus of a well-tuned workspace: what a thoughtfully
+configured terminal makes possible.*
 
 ## Lessons Learnt
 
@@ -1266,16 +1269,15 @@ thoughtfully configured terminal makes possible.*
 
 ### Technical Skills
 
-- I learnt to use `vcs_info` for lightweight git integration in
-  the prompt, avoiding the overhead of Oh My Zsh.
-- Cross-platform plugin loading via `$OSTYPE` checks lets me
-  share one `.zshrc` between macOS and Linux.
+- Using `vcs_info` for lightweight git integration in the prompt
+  avoids the overhead of Oh My Zsh.
+- Cross-platform plugin loading via `$OSTYPE` checks allows
+  sharing one `.zshrc` between macOS and Linux.
 - Combining `ripgrep` with `fzf` for file finding (the `pp`,
-  `rr`, and `ff` functions) replaced several GUI tools I used
-  to depend on.
-- Kitty's remote control API (`kitty @`) opens possibilities
-  for scripting terminal layouts, which I use when setting up
-  experiment monitoring.
+  `rr`, and `ff` functions) can replace several GUI tools.
+- Kitty's remote control API (`kitty @`) opens possibilities for
+  scripting terminal layouts, useful when setting up experiment
+  monitoring.
 
 ### Gotchas and Pitfalls
 
@@ -1286,9 +1288,8 @@ thoughtfully configured terminal makes possible.*
   sessions in real time, which can be disorienting if you are
   not expecting it.
 - The `_load_plugin` helper function defined in section 6 is
-  currently unused because I found inline conditionals more
-  readable for three plugins. It would become useful with more
-  plugins.
+  currently unused because inline conditionals are more readable
+  for three plugins. It would become useful with more plugins.
 - Kitty's `background_image` setting accepts an absolute path.
   If the image file moves, Kitty starts with a black background
   and no error message.
@@ -1302,7 +1303,7 @@ thoughtfully configured terminal makes possible.*
   `/opt/miniconda3`, `/home/z/.autojump`) that will not work
   on other machines without editing.
 - The Kitty configuration references a background image at an
-  absolute path that is specific to my machine.
+  absolute path that is specific to the original machine.
 - Plugin loading adds startup latency. For remote servers where
   shell startup time matters (e.g., inside Docker containers),
   a stripped-down `.zshrc` would be more appropriate.
@@ -1315,7 +1316,7 @@ thoughtfully configured terminal makes possible.*
 ## Opportunities for Improvement
 
 1. Store the configuration in a dotfiles repository with a
-   symlink-based installer (see my companion post on GitHub
+   symlink-based installer (see the companion post on GitHub
    dotfiles).
 2. Replace hardcoded paths with environment variables or
    auto-detection logic to improve portability.
@@ -1331,27 +1332,27 @@ thoughtfully configured terminal makes possible.*
 
 ![A lofi workspace with warm ambient lighting](media/images/lofi.jpg){.img-fluid}
 
-*The destination: a command line that works with you, not
-against you.*
+*The destination: a command line that works with the user, not
+against.*
 
 # Wrapping Up
 
 Configuring a terminal is not glamorous work, but it compounds.
 Every alias that saves two seconds, every prompt element that
 prevents a mistake, and every navigation shortcut that avoids a
-full path -- they add up across thousands of commands per week.
+full path adds up across thousands of commands per week.
 
-What I found most valuable was the organisational discipline:
+The most valuable aspect is the organisational discipline:
 numbered sections in `.zshrc`, grouped settings in `kitty.conf`,
 and consistent vi-mode keybindings across all tools via
-`.inputrc`. When something breaks, I know exactly where to look.
-When I want to add something new, I know exactly where to put it.
+`.inputrc`. When something breaks, the location is obvious. When
+adding something new, the placement is clear.
 
-If you are starting from a default terminal setup, I would
-suggest focusing on four things first: a Nerd Font for icon
-support, `cdpath` for directory navigation, `fzf` for fuzzy
-file finding, and `.inputrc` for vi-mode consistency. Those
-changes made the biggest difference in my daily workflow.
+For those starting from a default terminal setup, focusing on
+four things first is recommended: a Nerd Font for icon support,
+`cdpath` for directory navigation, `fzf` for fuzzy file finding,
+and `.inputrc` for vi-mode consistency. These changes make the
+largest difference in daily workflows.
 
 **Main takeaways:**
 
@@ -1365,37 +1366,37 @@ changes made the biggest difference in my daily workflow.
 - GitHub CLI authentication (`gh auth`) simplifies credential
   management.
 - Readline configuration ensures vi-mode works in R, Python, and
-  other CLI tools -- not just Zsh.
+  other CLI tools, not just Zsh.
 
 # See Also
 
 **Related posts:**
 
 - [Creating a GitHub Dotfiles Repository for Configuration
-  Management](/posts/24-setupdotfilesongithub/) -- how to
+  Management](/posts/24-setupdotfilesongithub/): how to
   version-control the files described in this post
 - [Setting Up Neovim for Data Science
-  Development](/posts/12-configneovim/) -- the editor layer
-  that sits on top of this terminal configuration
+  Development](/posts/12-configneovim/): the editor layer that
+  sits on top of this terminal configuration
 
 **Key resources:**
 
-- [Kitty Terminal Documentation](https://sw.kovidgoyal.net/kitty/)
-  -- the official reference for all configuration options
-- [Zsh Documentation](https://zsh.sourceforge.io/Doc/) --
-  official manual covering options, completion, and scripting
-- [Git Configuration](https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration)
-  -- official guide to `.gitconfig` settings
-- [GitHub CLI](https://cli.github.com/) -- the `gh` tool used
-  for authentication in this configuration
-- [GNU Readline](https://tiswww.case.edu/php/chet/readline/readline.html)
-  -- official documentation for `.inputrc` settings
-- [FZF](https://github.com/junegunn/fzf) -- the fuzzy finder
-  used throughout this configuration
-- [Ripgrep](https://github.com/BurntSushi/ripgrep) -- the
-  search tool that powers `fzf` file finding here
-- [Configuring Zsh Without Dependencies](https://thevaluable.dev/zsh-install-configure-mouseless/)
-  -- an excellent guide to building a Zsh config from scratch
+- [Kitty Terminal Documentation](https://sw.kovidgoyal.net/kitty/):
+  the official reference for all configuration options
+- [Zsh Documentation](https://zsh.sourceforge.io/Doc/): official
+  manual covering options, completion, and scripting
+- [Git Configuration](https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration):
+  official guide to `.gitconfig` settings
+- [GitHub CLI](https://cli.github.com/): the `gh` tool used for
+  authentication in this configuration
+- [GNU Readline](https://tiswww.case.edu/php/chet/readline/readline.html):
+  official documentation for `.inputrc` settings
+- [FZF](https://github.com/junegunn/fzf): the fuzzy finder used
+  throughout this configuration
+- [Ripgrep](https://github.com/BurntSushi/ripgrep): the search
+  tool that powers `fzf` file finding here
+- [Configuring Zsh Without Dependencies](https://thevaluable.dev/zsh-install-configure-mouseless/):
+  an excellent guide to building a Zsh config from scratch
 
 # Reproducibility
 
@@ -1426,17 +1427,12 @@ fzf --version
 rg --version
 ```
 
-# Let's Connect
+# Feedback
 
-- **GitHub**: [rgt47](https://github.com/rgt47)
-- **Twitter/X**: [@rgt47](https://twitter.com/rgt47)
-- **LinkedIn**: [Ronald Glenn Thomas](https://linkedin.com/in/rgthomaslab)
-- **Email**: [Contact through website](https://rgtlab.org/contact)
+Feedback is welcome for:
 
-I would enjoy hearing from you if you:
-
-- Spot an error or have a correction
-- Have a better approach to any of these configurations
-- Want to share your own terminal setup
-- Have questions about adapting this for a specific workflow
-- Just want to connect and talk about command-line tools
+- Errors or corrections
+- Better approaches to any of these configurations
+- Alternative terminal setups
+- Questions about adapting this for specific workflows
+- General discussion of command-line tools
