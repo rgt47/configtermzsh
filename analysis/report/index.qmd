@@ -125,312 +125,243 @@ generated it.
 
 # Getting Started: Kitty Terminal Configuration
 
-The configuration file below is a single, merged `kitty.conf`.
-I started with a basic setup and gradually added data-science
-specific settings over several weeks. The comments explain the
-reasoning behind each group of settings.
+The configuration below is my complete `kitty.conf`, built up
+over several weeks. Rather than present it as a single block, I
+will walk through each section and explain the reasoning behind
+the settings.
 
 `~/.config/kitty/kitty.conf`:
 
-```sh
+## Cursor and Basic Behaviour
 
-# Kitty Configuration
-# Cursor
+```sh
 cursor_shape block
 cursor_blink_interval 0
+```
 
-# Scrollback
-scrollback_lines 10000
+I prefer a solid block cursor with no blinking. The blinking
+cursor is distracting when reading code, and disabling it
+removes one source of visual noise. Some people prefer
+`cursor_shape beam` for a thinner insertion point, but I find
+the block easier to locate after looking away from the screen.
 
-# Performance
-repaint_delay 10
-input_delay 3
+## Scrollback Buffer
+
+```sh
+scrollback_lines 50000
+scrollback_pager less --chop-long-lines --RAW-CONTROL-CHARS +INPUT_LINE_NUMBER
+scrollback_fill_enlarged_window yes
+```
+
+The default scrollback of 2,000 lines is inadequate for data
+science work. Model training runs, database query results, and
+error traces routinely exceed that limit. I increased this to
+50,000 lines, which covers most of my workflows without
+consuming excessive memory.
+
+The `scrollback_pager` setting lets me open the entire terminal
+history in `less` by pressing `Ctrl+Shift+H`. This is invaluable
+when I need to search through a long training log for a specific
+metric or error message. The `+INPUT_LINE_NUMBER` flag positions
+the pager at the current scroll position rather than the top.
+
+## Performance Tuning
+
+```sh
+repaint_delay 2
+input_delay 0
 sync_to_monitor yes
+```
 
-# Window layout
-# remember_window_size  yes
+These settings reduce latency when the terminal is updating
+rapidly. With `input_delay 0`, keystrokes register immediately
+even when a long-running process is flooding the screen with
+output. The `repaint_delay 2` (milliseconds) keeps the display
+smooth when streaming data through command-line tools.
+
+I keep `sync_to_monitor yes` to avoid screen tearing, but if you
+notice lag during intensive output, setting it to `no` can help.
+The trade-off is occasional visual artifacts during rapid
+scrolling.
+
+## Window Layout and Padding
+
+```sh
 initial_window_width  1024
 initial_window_height 768
 window_padding_width 4
+window_margin_width 5
+window_border_width 2pt
+inactive_border_width 1pt
+draw_minimal_borders yes
+```
 
-# Tab bar
+The initial window size gives me a reasonable starting point
+that I then resize as needed. The padding and margin settings
+add breathing room around the terminal content, which reduces
+eye strain during long sessions. Minimal borders keep the
+interface clean when using split panes.
+
+## Tab Bar Appearance
+
+```sh
 tab_bar_edge bottom
 tab_bar_style powerline
 tab_powerline_style slanted
+```
 
-# Key bindings (preserving your existing ones)
+I place the tab bar at the bottom because my eyes naturally rest
+in the lower half of the screen when typing. The powerline style
+with slanted separators provides clear visual distinction between
+tabs without being distracting.
+
+## Basic Key Bindings
+
+```sh
 map cmd+d launch --location=vsplit --cwd=current
-
-# Additional useful key bindings
 map cmd+w close_window
 map cmd+shift+w close_tab
 map cmd+t new_tab
 map cmd+shift+] next_tab
 map cmd+shift+[ previous_tab
 
-# Tab shortcuts
 map cmd+1 goto_tab 1
 map cmd+2 goto_tab 2
 map cmd+3 goto_tab 3
 map cmd+4 goto_tab 4
 map cmd+5 goto_tab 5
+```
 
-# Zoom
+These bindings mirror what I expect from other macOS
+applications. `Cmd+D` splits the current pane vertically (the
+`--cwd=current` flag ensures the new pane starts in the same
+directory). The tab shortcuts let me jump directly to a specific
+tab without cycling through them.
+
+## Zoom and Font Size
+
+```sh
 map cmd+plus change_font_size all +2.0
 map cmd+minus change_font_size all -2.0
 map cmd+0 change_font_size all 0
 map ctrl+shift+z toggle_layout stack
+map f11 toggle_layout stack
+```
 
-# Clipboard
+Quick font resizing is essential when sharing my screen or
+reading dense output. The `toggle_layout stack` binding
+temporarily maximises the current pane, which is useful when I
+need to focus on one window without closing others.
+
+## Clipboard Integration
+
+```sh
 map cmd+c copy_to_clipboard
 map cmd+v paste_from_clipboard
 copy_on_select clipboard
+```
 
-# Miscellaneous
+The `copy_on_select clipboard` setting is a significant
+time-saver. Selecting text with the mouse automatically copies
+it to the clipboard, eliminating the extra `Cmd+C` keystroke. I
+use this constantly when copying error messages or code snippets.
+
+## Remote Control and Shell Integration
+
+```sh
 allow_remote_control yes
 listen_on unix:/tmp/kitty
-# shell_integration enabled
+```
 
+Remote control lets me script Kitty from the command line. For
+example, I can set window titles programmatically to track
+different experiments:
 
-# =============================================================================
-# DATA SCIENCE SPECIFIC CONFIGURATIONS
-# =============================================================================
-# Optimized settings for data scientists working with large datasets,
-# visualizations, remote servers, and Jupyter notebooks
-# References: https://sw.kovidgoyal.net/kitty/conf/
+```bash
+kitty @ set-window-title "Model-XGBoost-Experiment-1"
+```
 
-# SCROLLBACK CONFIGURATION FOR LARGE DATASETS
-# -----------------------------------------------------------------------------
-# Data scientists often work with outputs from large dataset processing,
-# model training logs, and lengthy computational results that require
-# extensive scrollback history for analysis and debugging.
-# 
-# Default scrollback_lines is 2000, but data science workflows benefit from
-# much larger buffers to review:
-# - Training logs from ML models (epochs, loss values, metrics)
-# - Database query results and data exploration output
-# - Error traces from complex data processing pipelines
-# - Statistical analysis results and summary statistics
-#
-# Example usage: After running a pandas DataFrame.describe() on a large dataset,
-# you can scroll back to compare statistics across different data subsets
-# Reference: https://sw.kovidgoyal.net/kitty/conf/#scrollback-lines
-scrollback_lines 50000
+This is particularly useful when running multiple training jobs
+and I need to identify which terminal corresponds to which
+experiment.
 
-# SCROLLBACK PAGER FOR DATA EXPLORATION
-# -----------------------------------------------------------------------------
-# The scrollback pager allows opening terminal history in a full-featured
-# text editor/pager for advanced search, navigation, and analysis.
-# Critical for data scientists who need to:
-# - Search through large model training outputs for specific metrics
-# - Copy/extract specific results from lengthy computational outputs
-# - Navigate complex error traces in data processing pipelines
-# - Review and compare results across multiple experimental runs
-#
-# Press Ctrl+Shift+H to open scrollback in your pager
-# Example: After running a hyperparameter search, use the pager to search
-# for "best_score" or "validation_accuracy" across all output
-# Reference: https://sw.kovidgoyal.net/kitty/conf/#scrollback-pager
-scrollback_pager less --chop-long-lines --RAW-CONTROL-CHARS +INPUT_LINE_NUMBER
+## Font Configuration
 
-# PERFORMANCE OPTIMIZATION FOR DATA PROCESSING
-# -----------------------------------------------------------------------------
-# Data science workflows often involve high-throughput operations:
-# - Streaming large datasets through command-line tools
-# - Real-time monitoring of training processes
-# - Processing CSV/JSON files with command-line utilities
-# - Running intensive computational tasks
-#
-# These settings minimize latency and maximize throughput for such operations:
-# Reference: https://sw.kovidgoyal.net/kitty/performance/
-
-# Reduce input delay for responsive interaction during long-running processes
-# Example: When monitoring training progress, you want immediate response
-# when pausing/stopping processes or adjusting parameters
-input_delay 0
-
-# Minimize repaint delay for smooth data streaming visualization
-# Example: When using tools like 'tail -f' to monitor log files or
-# streaming data processing output in real-time
-repaint_delay 2
-
-# Disable vsync for maximum performance during data processing
-# Trade-off: May cause slight screen tearing but improves performance
-# for high-throughput data operations
-# sync_to_monitor no
-
-# REMOTE WORK CAPABILITIES FOR CLOUD/HPC ENVIRONMENTS
-# -----------------------------------------------------------------------------
-# Data scientists frequently work on remote servers, cloud instances,
-# and HPC clusters where computational resources are available.
-# 
-# Enable remote control for programmatic terminal management:
-# - Automate window/tab creation for different experiments
-# - Programmatically set titles for different model runs
-# - Control terminal from Jupyter notebooks or Python scripts
-# Example: Set window titles to track different model experiments:
-# $ kitty @ set-window-title "Model-XGBoost-Experiment-1"
-# Reference: https://sw.kovidgoyal.net/kitty/remote-control/
-allow_remote_control yes
-
-# Shell integration provides enhanced features for data science workflows:
-# - Jump to previous command outputs (useful for reviewing model results)
-# - Enhanced command history navigation
-# - Better integration with shell-based data tools
-# Example: Quickly jump back to the output of a previous pandas operation
-# or statistical analysis
-# Reference: https://sw.kovidgoyal.net/kitty/shell-integration/
-# shell_integration enabled
-
-# FONT CONFIGURATION FOR CODE AND DATA READABILITY
-# -----------------------------------------------------------------------------
-# Data scientists work extensively with:
-# - Python/R code with mathematical symbols
-# - CSV/JSON data that requires clear column alignment
-# - Statistical output with precise numeric formatting
-# - Documentation and markdown files
-#
-# FiraCode Nerd Font provides:
-# - Programming ligatures for better code readability (==, !=, >=, etc.)
-# - Mathematical symbols used in data science contexts
-# - Clear distinction between similar characters (0 vs O, 1 vs l vs I)
-# - Excellent rendering of data tables and aligned output
-# Reference: https://github.com/ryanoasis/nerd-fonts
-# font_family FiraCode Nerd Font Mono
+```sh
 font_size 14.0
 font_family      JetBrainsMono Nerd Font Mono
 bold_font        JetBrainsMono Nerd Font Mono Extra Bold
 bold_italic_font JetBrainsMono Nerd Font Mono Extra Bold Italic
-# VISUALIZATION AND GRAPHICS SUPPORT
-# -----------------------------------------------------------------------------
-# Kitty's graphics protocol enables displaying images, plots, and charts
-# directly in the terminal - crucial for data science workflows:
-# - Matplotlib plots via matplotlib-backend-kitty
-# - Jupyter notebook cell outputs via euporie
-# - Quick data visualizations without switching applications
-# - Histograms and scatter plots generated by command-line tools
-#
-# Example integrations:
-# 1. Install matplotlib-backend-kitty:
-#    pip install matplotlib-backend-kitty
-#    Then use: MPLBACKEND=module://matplotlib-backend-kitty python plot.py
-#
-# 2. Use euporie for terminal-based Jupyter notebooks:
-#    pip install euporie-console
-#    euporie-console notebook.ipynb
-#
-# 3. Display images with kitten icat:
-#    kitten icat plot.png
-# Reference: https://sw.kovidgoyal.net/kitty/graphics-protocol/
+```
 
-# KEY BINDINGS FOR DATA SCIENCE WORKFLOWS
-# -----------------------------------------------------------------------------
+I use JetBrains Mono because it renders clearly at small sizes
+and includes programming ligatures that make operators like `!=`
+and `>=` more readable. The Nerd Font variant adds icons used by
+many command-line tools and prompt themes. At 14pt, the font is
+comfortable for extended reading without wasting screen space.
 
-# Quick access to scrollback for reviewing computational results
-# Essential when analyzing long outputs from data processing or model training
+## Data Science Key Bindings
+
+```sh
 map ctrl+shift+h show_scrollback
-
-# Image viewing for quick plot inspection
-# Example: After generating a matplotlib plot, quickly view it without
-# leaving the terminal environment
 map ctrl+shift+i kitten icat
-
-# Window management for parallel data science tasks:
-# - Monitor training in one pane while developing in another
-# - Compare outputs from different model runs side-by-side
-# - Keep documentation open while coding
 map cmd+shift+d launch --location=hsplit --cwd=current
-
-# Tab management for organizing different experiments/projects
-# Example: Separate tabs for data preprocessing, model training, evaluation
-map cmd+shift+] next_tab
-map cmd+shift+[ previous_tab
-
-# Zoom controls for detailed inspection of data/code
-# Useful when examining detailed numerical outputs or debugging code
-map cmd+plus change_font_size all +2.0
-map cmd+minus change_font_size all -2.0
-map cmd+0 change_font_size all 0
-
-# Window navigation
 map f8 launch --location=vsplit --cwd=current
 map f10 launch --type=os-window
 map f12 next_window
 map f9 next_layout
 map ctrl+shift+l no_op
+```
 
-# CLIPBOARD INTEGRATION FOR DATA SHARING
-# -----------------------------------------------------------------------------
-# Data scientists frequently need to copy/paste:
-# - Code snippets between terminal and notebooks
-# - Data samples and statistical results
-# - Error messages for debugging
-# - URLs to datasets and documentation
-copy_on_select clipboard
+These bindings support my data science workflow specifically.
+`Ctrl+Shift+H` opens the scrollback in the pager for searching
+through training logs. `Ctrl+Shift+I` launches `kitten icat` for
+viewing images directly in the terminal (useful for quick plot
+inspection). The split bindings (`Cmd+Shift+D` for horizontal,
+`F8` for vertical) let me monitor a training run in one pane
+while continuing to work in another.
 
-# LAYOUT AND WINDOW MANAGEMENT
-# -----------------------------------------------------------------------------
-# Data science work benefits from multiple terminal views:
-# - Monitor long-running processes while continuing development
-# - Compare outputs from different model runs
-# - Keep reference documentation accessible
-map ctrl+shift+z toggle_layout stack
-map f11 toggle_layout stack
-# map ctrl+shift+r next_layout
-draw_minimal_borders yes
+## URL Detection and Notifications
 
-# APPEARANCE SETTINGS
-# -----------------------------------------------------------------------------
-# background_opacity 0.9
-window_margin_width 5 
-# background_image /Users/zenn/docs/backgrounds/atlas.png
-# background_image_layout scaled
-# background_tint 0.85
-window_border_width 2pt
-inactive_border_width 1pt
-# inactive_border_color #000000
-
-# ADDITIONAL DATA SCIENCE UTILITIES
-# -----------------------------------------------------------------------------
-# These settings enhance the overall data science experience:
-
-# Increase URL detection for accessing datasets, documentation, and repositories
-# Data scientists frequently work with URLs to:
-# - Kaggle datasets and competitions
-# - GitHub repositories and documentation
-# - Research papers and technical references
-# - Cloud storage locations (S3, GCS buckets)
+```sh
 detect_urls yes
-
-# Enable bell for long-running process notifications
-# Useful for getting notified when training completes or errors occur
-# Example: python train_model.py && echo -e '\a'  # Bell when training done
 enable_audio_bell yes
+```
 
-# Optimize for working with CSV and structured data
-# Better handling of wide data tables and formatted output
-scrollback_fill_enlarged_window yes
+URL detection makes it easy to open links to documentation,
+datasets, and GitHub repositories by clicking on them. The audio
+bell provides a notification when long-running processes
+complete. I often append `&& echo -e '\a'` to training commands
+so I hear when they finish.
 
+## macOS-Specific Settings
 
-
-# Override theme opacity settings
-
-# OpenGL optimization settings to reduce warnings
+```sh
 macos_option_as_alt yes
 macos_quit_when_last_window_closed yes
+confirm_os_window_close 1
+```
 
+On macOS, `macos_option_as_alt` lets me use Option as the Alt
+key, which is necessary for many terminal applications that
+expect Alt+key combinations. The quit and confirm settings
+prevent accidental closure of important terminal sessions.
 
+## Theme
+
+```sh
 # BEGIN_KITTY_THEME
 # 3024 Night
 include current-theme.conf
 # END_KITTY_THEME
-
-# Override theme border colors (must come after theme include)
-# active_border_color #00ff00
-
-# require confirm before closing last window
-confirm_os_window_close 1
 ```
+
+I use a dark theme (3024 Night) stored in a separate file. Kitty
+manages this through its theme system, which makes it easy to
+switch themes without editing the main configuration. Run
+`kitty +kitten themes` to browse and install themes.
+
+---
 
 The settings that made the largest difference for me were
 `scrollback_lines 50000` (I no longer lose model training
@@ -456,104 +387,121 @@ terminal's font rendering and colour support.*
 ## Zsh Shell Configuration
 
 With Kitty configured, the next layer is the shell itself. My
-`.zshrc` is organised into ten numbered sections. Each section
-handles one concern, which makes it straightforward to find and
-modify settings.
+`.zshrc` is organised into twelve numbered sections, each
+handling one concern. I will walk through each section and
+explain the reasoning.
 
-The full file is below.
+A key design principle: every optional dependency is wrapped in
+a conditional check. If a tool like `autojump` or `ripgrep` is
+not installed, the configuration degrades gracefully rather than
+throwing errors.
 
 `~/.zshrc`:
 
+### Environment and Security
+
 ```sh
-
-# ==========================================================================
-# ZSH CONFIGURATION - REFACTORED FOR ZZCOLLAB DOCKER FILTERING
-# ==========================================================================
-#
-# 🍎 MACOS-SPECIFIC CONTENT GROUPED FOR EASY IDENTIFICATION:
-#
-# The following sections contain macOS-specific content that will be
-# automatically filtered out when creating Docker-compatible .zshrc_docker:
-#
-# - Section 3: macOS-specific configuration (Homebrew paths, etc.)
-# - Section 8: Plugin management (brew --prefix paths)
-# - Section 10: macOS-specific aliases (open, Skim, etc.)
-# - Section 11: macOS-specific functions (Mathematica, etc.)
-# - Section 12: macOS-specific external tools (conda paths, etc.)
-#
-# All sections marked with 🍎 will be removed or replaced in Docker containers.
-#
-# ==========================================================================
-
-# ==========================================================================
-# 1. ENVIRONMENT & SECURITY
-# ==========================================================================
-
-# Security: Source sensitive environment variables from separate file
 [[ -f ~/.env ]] && source ~/.env
+```
 
-# ==========================================================================
-# 2. CORE SHELL CONFIGURATION (Cross-platform)
-# ==========================================================================
+Sensitive information (API keys, tokens, database credentials)
+lives in a separate `~/.env` file that is not version-controlled.
+This single line sources it if it exists and does nothing if it
+does not. I never commit secrets to my dotfiles repository.
 
-# Basic exports
+### Core Shell Configuration
+
+```sh
 export EDITOR="vim"
 export VIMINIT='source ~/.config/vim/vimrc'
 export DOCKER_BUILDKIT=1
 export GITHUB_USER="rgt47"
 
-# TeX configuration
 export TEXINPUTS=".:$HOME/shr/images:$HOME/shr:"
 export BIBINPUTS=".:$HOME/shr/bibfiles:$HOME/shr"
+```
 
-# ==========================================================================
-# 3. MACOS-SPECIFIC CONFIGURATION
-# ==========================================================================
-# 🍎 ALL MACOS-SPECIFIC SETTINGS GROUPED HERE FOR EASY IDENTIFICATION
+These exports set my default editor and configure paths for
+LaTeX. The `DOCKER_BUILDKIT=1` enables Docker's improved build
+system, which provides better caching and parallel builds. The
+`GITHUB_USER` variable is used by various scripts that interact
+with GitHub.
 
+### Platform-Specific PATH Configuration
+
+```sh
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS-specific application configuration
     export HOMEBREW_AUTO_UPDATE_SECS="604800"
-
-    # macOS PATH configuration (includes Homebrew paths)
-    # SECURITY FIX: Removed leading "." from PATH
     export PATH="$HOME/bin:$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
 else
-    # Linux PATH configuration
     export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 fi
+```
 
-# ==========================================================================
-# 4. CORE SHELL OPTIONS (Cross-platform)
-# ==========================================================================
+This is the first example of cross-platform logic. On macOS, I
+include Homebrew's paths and throttle automatic updates to once
+per week (604800 seconds). On Linux, I skip the Homebrew paths
+since they do not exist. The `$OSTYPE` variable is set by Zsh
+and reliably distinguishes between operating systems.
 
-# Directory shortcuts
+Note the security fix: I removed a leading `.` from PATH that
+was present in an earlier version. Having `.` in PATH means the
+shell will execute programs in the current directory, which is a
+security risk if you `cd` into an untrusted directory.
+
+### Core Shell Options
+
+```sh
 cdpath=($HOME/Dropbox $HOME/Dropbox/prj $HOME/Dropbox/sbx $HOME/Dropbox/work)
 
-# Basic shell options
 setopt auto_cd auto_pushd pushd_ignore_dups pushdminus
 setopt PROMPT_SUBST
 
-# Vi mode
 bindkey -v
-
-# Double hyphen to underscore
 bindkey -s -- '--' '_'
+```
 
-# ==========================================================================
-# 5. HISTORY MANAGEMENT (Cross-platform)
-# ==========================================================================
+The `cdpath` variable is one of Zsh's most underrated features.
+With this setting, I can type `cd myproject` from anywhere and
+Zsh will search `~/Dropbox/prj/myproject` automatically. Combined
+with `auto_cd` (which lets me omit `cd` entirely and just type
+a directory name), navigation becomes remarkably fast.
 
+The `auto_pushd` option maintains a directory stack that I can
+navigate with numbered aliases (`1`, `2`, `3`, etc.) defined
+later. `PROMPT_SUBST` enables variable expansion in the prompt.
+
+I use vi mode (`bindkey -v`) because my muscle memory expects
+hjkl navigation and Escape to exit insert mode. The `--` to `_`
+binding is a small convenience: typing two hyphens produces an
+underscore, which is faster for snake_case identifiers.
+
+### History Management
+
+```sh
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=100000
 SAVEHIST=100000
 setopt SHARE_HISTORY HIST_IGNORE_DUPS INC_APPEND_HISTORY HIST_VERIFY
+```
 
-# ==========================================================================
-# 6. COMPLETION & NAVIGATION (Cross-platform)
-# ==========================================================================
+I keep 100,000 lines of history because disk space is cheap and
+I frequently need to recall commands from weeks ago. The options
+work together:
 
-# PERFORMANCE: Completion system with caching (only rebuild once per day)
+- `SHARE_HISTORY` syncs history across all terminal sessions in
+  real time (controversial -- some people find this disorienting)
+- `HIST_IGNORE_DUPS` avoids cluttering history with repeated
+  commands
+- `INC_APPEND_HISTORY` writes each command immediately rather
+  than at session end
+- `HIST_VERIFY` shows the expanded command before executing when
+  using history substitution (e.g., `!!`), giving me a chance to
+  review before running
+
+### Completion System
+
+```sh
 autoload -Uz compinit
 if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
     compinit
@@ -561,32 +509,48 @@ else
     compinit -C
 fi
 compdef _dirs d
+```
 
-# ==========================================================================
-# 7. PROMPT & VCS INTEGRATION (Cross-platform)
-# ==========================================================================
+The completion system is one of Zsh's strengths, but initialising
+it on every shell startup adds latency. This code caches the
+completion dump file and only regenerates it if it is more than
+24 hours old. The result is noticeably faster shell startup.
 
-# Version control setup
+The `compdef _dirs d` line tells Zsh to use directory completion
+for my custom `d` function defined later.
+
+### Prompt and Git Integration
+
+```sh
 autoload -Uz vcs_info
 precmd() { vcs_info }
 zstyle ':vcs_info:git:*' formats '%b '
 
-# Custom prompt
 PROMPT='%F{cyan}%m%f %F{green}%*%f %F{yellow}${${PWD:A}/$HOME/~}%f %F{red}${vcs_info_msg_0_}%f$ %(?:☕  :☔  )'
+```
 
-# ==========================================================================
-# 8. PLUGIN MANAGEMENT (Platform-aware)
-# ==========================================================================
+This prompt displays:
 
-# Load plugins based on OS
+- Hostname in cyan (useful when SSHing between machines)
+- Current time in green
+- Working directory in yellow (with `~` substituted for `$HOME`)
+- Git branch in red (via `vcs_info`)
+- A coffee cup if the last command succeeded, a rain cloud if it
+  failed
+
+The `vcs_info` approach is lightweight compared to Oh My Zsh's
+git plugin. It runs in the `precmd` hook before each prompt and
+extracts just the branch name. This has saved me from committing
+to the wrong branch countless times.
+
+### Plugin Management
+
+```sh
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux plugin paths
     [[ -s /home/z/.autojump/etc/profile.d/autojump.sh ]] && source /home/z/.autojump/etc/profile.d/autojump.sh
     [[ -f ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
     [[ -f ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-    # 🍎 macOS plugin paths (uses Homebrew)
-    # PERFORMANCE: Cache brew --prefix to avoid slow command on every shell startup
     if [[ -z "$BREW_PREFIX" ]]; then
         export BREW_PREFIX="/opt/homebrew"
     fi
@@ -595,30 +559,93 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     [[ -f "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 fi
 
-# Plugin configuration
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=red,bold,underline'
+```
 
-# ==========================================================================
-# 9. TOOL-SPECIFIC CONFIGURATION (Cross-platform)
-# ==========================================================================
+I use three plugins, each addressing a specific friction point
+in command-line work:
 
-# FZF configuration
+**autojump** maintains a database of directories you visit,
+weighted by frequency. After using it for a few days, you can
+type `j proj` to jump to `~/Dropbox/prj/myproject` without
+typing the full path. It learns from your behaviour: the more
+often you visit a directory, the higher it ranks in fuzzy
+matching. Install with `brew install autojump` (macOS) or
+`apt install autojump` (Ubuntu). The only downside is the
+initial learning period -- it takes a week or two of normal
+usage before the database becomes useful.
+
+**zsh-autosuggestions** displays ghost text showing a prediction
+of what you might type next, based on your command history. As
+you type `git`, it might suggest `git status` in grey text. Press
+the right arrow key to accept the entire suggestion, or press
+`Ctrl+E` to accept just to the end of the current word. This
+plugin has dramatically reduced my typing for repetitive
+commands. Install with `brew install zsh-autosuggestions`
+(macOS) or clone from GitHub on Linux. The
+`ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE` setting controls how
+suggestions appear; I use red bold underline to make them
+visually distinct from my actual typing.
+
+**zsh-syntax-highlighting** provides real-time syntax
+highlighting as you type. Valid commands appear in green,
+unknown commands in red, quoted strings in yellow, and paths
+that exist are underlined. This catches typos before you press
+Enter: if `git comit` appears in red, you know immediately that
+it is not a valid command. Install with
+`brew install zsh-syntax-highlighting` (macOS) or clone from
+GitHub on Linux. Note that this plugin must be sourced last in
+your `.zshrc` to work correctly with other plugins.
+
+The conditional loading pattern (`[[ -f ... ]] && source ...`)
+means Zsh will not error if a plugin is missing. This is
+essential for sharing the same `.zshrc` across machines where
+not all plugins are installed. If autojump is not present, that
+line does nothing and the shell continues to load.
+
+On macOS, I cache `BREW_PREFIX` to avoid calling `brew --prefix`
+on every shell startup. Without caching, `brew --prefix` adds
+roughly 200-400ms to shell startup time, which is noticeable
+when opening new terminal tabs. Hardcoding `/opt/homebrew`
+(the default on Apple Silicon Macs) eliminates this delay.
+
+### FZF Configuration
+
+```sh
 if type rg &> /dev/null; then
     export FZF_DEFAULT_COMMAND='rg --files --hidden'
     export FZF_DEFAULT_OPTS='-m --height 50% --border --reverse'
 fi
+```
 
-# ==========================================================================
-# 10. ALIASES (Cross-platform)
-# ==========================================================================
+This configures `fzf` (fuzzy finder) to use `ripgrep` as its file
+source, but only if `ripgrep` is installed. The options enable
+multi-select (`-m`), use half the terminal height, add a border,
+and reverse the list so matches appear at the bottom near the
+prompt.
 
-# Navigation aliases
+### Navigation Aliases
+
+```sh
 alias -- -='cd -'
 alias -g ...='../..'
 
-# File listing with color support (OS-aware)
+alias 1='cd -1'
+alias 2='cd -2'
+alias 3='cd -3'
+alias 4='cd -4'
+alias 5='cd -5'
+```
+
+The `-` alias lets me type just `-` to return to the previous
+directory. The `...` global alias expands to `../..` anywhere in
+a command. The numbered aliases navigate the directory stack
+maintained by `auto_pushd`.
+
+### File Listing with Colour
+
+```sh
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS (BSD ls) - check if GNU ls is installed via coreutils
     if command -v gls &> /dev/null; then
         alias ls='gls --color=auto'
         alias ll='gls -lh --color=auto'
@@ -627,34 +654,23 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         alias ll='ls -lhG'
     fi
 else
-    # Linux (GNU ls)
     alias ls='ls --color=auto'
     alias ll='ls -lh --color=auto'
 fi
 
-
-# Directory stack navigation
 alias lt='eza -lrha -sold'
-alias 1='cd -1'
-alias 2='cd -2'
-alias 3='cd -3'
-alias 4='cd -4'
-alias 5='cd -5'
-
-# Color support for common tools
 alias grep='grep --color=auto'
+```
 
-# diff with color (OS-aware)
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS diff doesn't support --color, check for GNU diff
-    if command -v gdiff &> /dev/null; then
-        alias diff='gdiff --color=auto'
-    fi
-else
-    alias diff='diff --color=auto'
-fi
+macOS ships with BSD `ls`, which uses `-G` for colour. Linux
+uses GNU `ls`, which uses `--color=auto`. If I have installed
+GNU coreutils on macOS (via `brew install coreutils`), I prefer
+`gls` for consistency. The `lt` alias uses `eza` (a modern `ls`
+replacement) to list files sorted by modification time.
 
-# Application shortcuts
+### Application Shortcuts
+
+```sh
 alias za='zathura'
 alias hh='history'
 alias R='R --quiet --no-save'
@@ -662,29 +678,34 @@ alias mm='mutt'
 alias v='vim'
 alias ZZ='exit'
 
-# Config editing
 alias vc='vim ~/.config/vim/vimrc'
 alias vz='vim ~/Dropbox/dotfiles/zshrc'
 alias sz='source ~/.zshrc'
+```
 
-# Safety aliases
+These are simple shortcuts for programs I use frequently. The
+`R` alias starts R without the startup message and without
+prompting to save the workspace on exit. `ZZ` mirrors vim's exit
+command. The config editing aliases (`vc`, `vz`, `sz`) make it
+fast to edit and reload configuration files.
+
+### Safety Aliases
+
+```sh
 alias tp='trash-put -v'
 # alias rm='echo "This is not the command you are looking for."; false'
+```
 
-# ==========================================================================
-# 🍎 MACOS-SPECIFIC ALIASES
-# ==========================================================================
+After accidentally deleting a dataset early in my career, I
+adopted `trash-put` from the `trash-cli` package. The `tp` alias
+moves files to the trash rather than deleting them permanently.
+I keep the `rm` override commented out because it breaks scripts
+that legitimately need to delete files, but uncommenting it
+provides an extra safety net during interactive use.
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS application shortcuts
-    alias sk='open -a Skim'
-fi
+### Fuzzy Finding Functions
 
-# ==========================================================================
-# 11. CUSTOM FUNCTIONS (Cross-platform)
-# ==========================================================================
-
-# Directory listing function
+```sh
 d() {
     if [[ -n $1 ]]; then
         dirs "$@"
@@ -693,7 +714,6 @@ d() {
     fi
 }
 
-# File finder with cd
 ff() {
     local file
     file=$(rg --files "${1:-.}" 2>/dev/null | fzf --select-1 --exit-0)
@@ -702,7 +722,6 @@ ff() {
     fi
 }
 
-# PDF finder with zathura (IMPROVED: converted from alias to function with error handling)
 pp() {
     local pdf
     pdf=$(rg --files 2>/dev/null | rg "\.pdf$" | fzf)
@@ -711,7 +730,6 @@ pp() {
     fi
 }
 
-# R file finder with vim (IMPROVED: converted from alias to function with error handling)
 rr() {
     local rfile
     rfile=$(rg --files 2>/dev/null | rg "\.(R|Rmd)$" | fzf)
@@ -719,57 +737,51 @@ rr() {
         vim "$rfile"
     fi
 }
+```
 
-# Git workflow function: add, commit with auto-generated summary, and push
+These functions combine `ripgrep` with `fzf` for rapid file
+navigation:
+
+- `d` shows the directory stack (up to 10 entries)
+- `ff` finds any file and `cd`s to its directory
+- `pp` finds PDF files and opens them in Zathura
+- `rr` finds R or Rmd files and opens them in vim
+
+The pattern is consistent: use `ripgrep` to list files, pipe to
+`fzf` for selection, then take action on the result. These
+functions have largely replaced my use of graphical file managers.
+
+### Git Workflow Function
+
+```sh
 gz() {
-    # Check if we're in a git repository
     if ! git rev-parse --git-dir > /dev/null 2>&1; then
         echo "Error: Not a git repository" >&2
         return 1
     fi
 
-    # Show current status
     echo "Current git status:"
     git status --short
     echo ""
 
-    # Add all changes
-    echo "Adding files to git..."
     git add .
 
-    # Show diff summary
-    echo "═══════════════════════════════════════════════════════════"
-    echo "📝 CHANGES SUMMARY"
     echo "═══════════════════════════════════════════════════════════"
     git diff --cached --stat
     echo ""
-
-    # Show a preview of the actual changes (first 30 lines)
-    echo "Preview of changes:"
     git diff --cached | head -30
     echo ""
 
-    # Generate file list summary
     local summary=$(git diff --cached --name-only | head -5 | tr '\n' ', ' | sed 's/,$//')
     local file_count=$(git diff --cached --name-only | wc -l)
     if [[ $file_count -gt 5 ]]; then
         summary="$summary and $((file_count - 5)) more files"
     fi
 
-    # Prompt for commit type with numbered options
-    echo "═══════════════════════════════════════════════════════════"
     echo "Commit type:"
-    echo "  1) feat       - A new feature"
-    echo "  2) fix        - A bug fix"
-    echo "  3) refactor   - Code refactoring"
-    echo "  4) docs       - Documentation updates"
-    echo "  5) test       - Adding/updating tests"
-    echo "  6) chore      - Build, config, dependencies"
-    echo "  7) perf       - Performance improvements"
-    echo "  8) ci         - CI/CD configuration"
-    echo "  9) style      - Code style (formatting, linting)"
-    echo ""
-    echo -n "Select commit type (1-9): "
+    echo "  1) feat   2) fix   3) refactor   4) docs   5) test"
+    echo "  6) chore  7) perf  8) ci         9) style"
+    echo -n "Select (1-9): "
     read type_choice
 
     case $type_choice in
@@ -782,95 +794,59 @@ gz() {
         7) local type="perf" ;;
         8) local type="ci" ;;
         9) local type="style" ;;
-        *) echo "Invalid choice. Using 'chore'" >&2; local type="chore" ;;
+        *) local type="chore" ;;
     esac
 
-    echo -n "Scope (optional, press Enter to skip): "
+    echo -n "Scope (optional): "
     read scope
-    echo -n "Description (optional, press Enter to skip): "
+    echo -n "Description (optional): "
     read description
 
-    # Build commit message
     local commit_msg="$type"
     [[ -n "$scope" ]] && commit_msg="$commit_msg($scope)"
     commit_msg="$commit_msg: $summary"
+    [[ -n "$description" ]] && commit_msg="$commit_msg"$'\n\n'"$description"
 
-    if [[ -n "$description" ]]; then
-        commit_msg="$commit_msg"$'\n\n'"$description"
-    fi
-
-    # Commit changes
-    echo ""
-    echo "═══════════════════════════════════════════════════════════"
-    echo "Committing with message:"
-    echo "$commit_msg"
-    echo "═══════════════════════════════════════════════════════════"
-    echo ""
     git commit -m "$commit_msg"
+    [[ $? -ne 0 ]] && return 1
 
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Commit failed" >&2
-        return 1
-    fi
-
-    # Push to GitHub
-    echo "Pushing to GitHub..."
     git push
-
-    if [[ $? -eq 0 ]]; then
-        echo "✅ Successfully pushed to GitHub!"
-    else
-        echo "Error: Push failed" >&2
-        return 1
-    fi
 }
+```
 
-# ==========================================================================
-# 🍎 MACOS-SPECIFIC FUNCTIONS
-# ==========================================================================
+The `gz` function implements a guided git workflow: stage all
+changes, show a summary, prompt for a conventional commit type
+and optional scope, generate a commit message, and push. This
+enforces consistent commit message formatting without requiring
+me to remember the exact syntax each time.
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # Mathematica script runner (macOS only) - IMPROVED: added error handling
-    mma() {
-        if [[ -z "$1" ]]; then
-            echo "Usage: mma <script.wl>" >&2
-            return 1
-        fi
-        if [[ ! -f "$1" ]]; then
-            echo "Error: File '$1' not found" >&2
-            return 1
-        fi
-        /Applications/Mathematica.app/Contents/MacOS/WolframKernel -script "$1"
-    }
-fi
+### External Tool Integration
 
-# ==========================================================================
-# 12. EXTERNAL TOOL INTEGRATION
-# ==========================================================================
-
-# NVM (Node Version Manager)
+```sh
 export NVM_DIR="$HOME/.nvm"
-[[ -s "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[[ -s "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[[ -s "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"
+[[ -s "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"
 
-# XQuartz DISPLAY variable for Docker GUI apps (macOS only)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ -z "$DISPLAY" ]]; then
         export DISPLAY=:0
     fi
 fi
+```
 
-# Conda initialization (platform-aware)
+NVM (Node Version Manager) is loaded conditionally. The
+`DISPLAY` variable setup is for running GUI applications inside
+Docker containers on macOS via XQuartz.
+
+### Conda Initialization
+
+```sh
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # 🍎 macOS conda path
     _CONDA_ROOT="/opt/miniconda3"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux conda path (adjust if different)
     _CONDA_ROOT="$HOME/miniconda3"
 fi
 
-# >>> conda initialize >>>
-# !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/opt/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
     eval "$__conda_setup"
@@ -882,43 +858,16 @@ else
     fi
 fi
 unset __conda_setup
-# <<< conda initialize <<<
+```
 
-# alias to log claude sessions
- alias claudelog='mkdir -p ~/claude_sessions/$(date +%Y-%m-%d) && claude 2>&1 | tee ~/claude_sessions/$(date +%Y-%m-%d)/session_$(date +%H%M%S).log'
+This block is generated by `conda init` and handles setting up
+the Conda environment. I have kept the paths platform-aware,
+though the initialization block itself uses hardcoded paths that
+would need editing on a different machine.
 
-# run make from anywhere in repo
-mr() {
-      local dir="$PWD"
-      local root=""
+### Project Navigation (ZZCOLLAB)
 
-      # Find zzcollab project root (DESCRIPTION or .zzcollab_project)
-      while [[ "$dir" != "/" ]]; do
-          if [[ -f "$dir/DESCRIPTION" ]] || [[ -f "$dir/.zzcollab_project" ]]; then
-              root="$dir"
-              break
-          fi
-          dir="$(dirname "$dir")"
-      done
-
-      if [[ -z "$root" ]]; then
-          echo "❌ Not in a ZZCOLLAB project (no DESCRIPTION or .zzcollab_project found)"
-          return 1
-      fi
-
-      if [[ ! -f "$root/Makefile" ]]; then
-          echo "❌ No Makefile in project root: $root"
-          return 1
-      fi
-
-      make -C "$root" "${@:-r}"
-  }
-export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
-
-# ZZCOLLAB Navigation Functions (added by navigation_scripts.sh)
-# These allow one-letter navigation from anywhere in your project
-
-# Find project root (looks for DESCRIPTION file)
+```sh
 _zzcollab_root() {
     local dir="$PWD"
     while [[ "$dir" != "/" ]]; do
@@ -931,109 +880,235 @@ _zzcollab_root() {
     return 1
 }
 
-# Navigation functions
 a() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis" || echo "Not in ZZCOLLAB project"; }
-w() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/data/raw_data" || echo "Not in ZZCOLLAB project"; }
-y() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/data/derived_data" || echo "Not in ZZCOLLAB project"; }
-n() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis" || echo "Not in ZZCOLLAB project"; }
-f() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/figures" || echo "Not in ZZCOLLAB project"; }
-t() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/data" || echo "Not in ZZCOLLAB project"; }
 s() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/scripts" || echo "Not in ZZCOLLAB project"; }
 p() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/report" || echo "Not in ZZCOLLAB project"; }
+f() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/figures" || echo "Not in ZZCOLLAB project"; }
 r() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/R" || echo "Not in ZZCOLLAB project"; }
 0() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root" || echo "Not in ZZCOLLAB project"; }
-m() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/man" || echo "Not in ZZCOLLAB project"; }
-e() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/tests" || echo "Not in ZZCOLLAB project"; }
-o() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/docs" || echo "Not in ZZCOLLAB project"; }
-c() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/archive" || echo "Not in ZZCOLLAB project"; }
 
-# Run make targets from any subdirectory (defaults to "make r")
 mr() {
     local root=$(_zzcollab_root)
-    if [[ -z "$root" ]]; then
-        echo "Not in ZZCOLLAB project"
-        return 1
-    fi
-    if [[ ! -f "$root/Makefile" ]]; then
-        echo "No Makefile in project root: $root"
-        return 1
-    fi
+    [[ -z "$root" ]] && echo "Not in ZZCOLLAB project" && return 1
+    [[ ! -f "$root/Makefile" ]] && echo "No Makefile in: $root" && return 1
     make -C "$root" "${@:-r}"
 }
-
-# List navigation shortcuts
-nav() {
-    echo "ZZCOLLAB Navigation Shortcuts:"
-    echo "  r → project root"
-    echo "  a/n → analysis/"
-    echo "  d → analysis/data/"
-    echo "  w → analysis/data/raw_data/"
-    echo "  y → analysis/data/derived_data/"
-    echo "  s → analysis/scripts/"
-    echo "  p → analysis/report/"
-    echo "  f → analysis/figures/"
-    echo "  t → analysis/tables/"
-    echo "  m → man/"
-    echo "  e → tests/"
-    echo "  o → docs/"
-    echo "  c → archive/"
-    echo ""
-    echo "Make Commands (from any subdirectory):"
-    echo "  mr        → make r (start container)"
-    echo "  mr test   → make test"
-    echo "  mr [target] → make [target]"
-}
-# End ZZCOLLAB Navigation Functions
-
-
-export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"
-export ZZEDC_TEST_BACKENDS="sqlite,duckdb,postgresql"
-export ZZEDC_TEST_PG_HOST="localhost"
-export ZZEDC_TEST_PG_DB="zzedc_test"
-export ZZEDC_TEST_PG_USER="$USER"
-export ZZEDC_TEST_PG_PASSWORD=""
 ```
 
+These functions support my research compendium workflow. From
+anywhere inside a project, single-letter commands navigate to
+standard directories: `a` for analysis, `s` for scripts, `p` for
+the report, `f` for figures, `r` for R source files, and `0` for
+the project root. The `mr` function runs Make targets from any
+subdirectory.
+
+The `_zzcollab_root` helper walks up the directory tree looking
+for a `DESCRIPTION` file (standard R package marker) or a
+`.zzcollab_project` file (my project marker). This pattern lets
+me define project-aware commands without hardcoding paths.
+
+---
+
 The numbered sections are deliberate. When I need to add a new
-alias, I go straight to section 8. When a plugin breaks, I look
-at section 6. This organisational discipline saves time every
-time I edit the file.
+alias, I go straight to the aliases section. When a plugin
+breaks, I look at plugin management. This organisational
+discipline saves time every time I edit the file.
 
-# Building a Workflow: Aliases and Functions in Practice
+## Git Configuration
 
-The aliases and functions in sections 8 and 9 above are the
-core of my daily command-line experience. Here I want to explain
-the thinking behind the ones I reach for most.
+Git is central to the workflow described above -- the `gz`
+function, the branch display in the prompt, and general version
+control. The configuration lives in `~/.gitconfig`.
 
-**Safety aliases.** I replaced `rm` with an error message
-(`alias rm='echo "This is not the command you are looking for.";
-false'`) and use `trash-put` via `tp` instead. After
-accidentally deleting a dataset early in my career, I decided
-that `rm` should never silently succeed. The alias forces me to
-use `tp`, which moves files to the trash rather than destroying
-them.
+`~/.gitconfig`:
 
-**Fuzzy finding.** The `pp` and `rr` aliases combine `ripgrep`
-with `fzf` to locate PDF files and R scripts, respectively. I
-type `pp`, a fuzzy search window appears listing every PDF in
-the current directory tree, and I select one to open in Zathura.
-The `ff` function does the same but changes directory to
-wherever the selected file lives.
+### User Identity and Defaults
 
-**Directory navigation.** The `cdpath` variable is one of the
-most underrated Zsh features I have encountered. By setting
-`cdpath=($HOME/Dropbox $HOME/Dropbox/prj)`, I can type
-`cd myproject` from anywhere and Zsh will find it inside
-`~/Dropbox/prj/myproject` without a full path. Combined with
-`auto_cd` (which lets me type a directory name without `cd`)
-and `auto_pushd` (which maintains a directory stack accessible
-via `d`), navigation becomes almost frictionless.
+```ini
+[init]
+    defaultBranch = main
 
-**The prompt.** My prompt shows the current time (green), the
-working directory (yellow), the git branch (red), and a status
-indicator: a coffee cup if the last command succeeded, a rain
-cloud if it failed. The git branch display alone has saved me
-from committing to the wrong branch dozens of times.
+[user]
+    name = r. glenn thomas
+    email = rgthomas@ucsd.edu
+
+[core]
+    editor = nvim
+    excludesfile = ~/.gitignore_global
+```
+
+The `defaultBranch` setting ensures new repositories start with
+`main` rather than `master`. The `excludesfile` points to a
+global gitignore that applies to all repositories -- useful for
+editor backup files, OS metadata like `.DS_Store`, and other
+files that should never be committed regardless of project.
+
+### Pull and Merge Behaviour
+
+```ini
+[pull]
+    rebase = false
+
+[commit]
+    quiet = true
+```
+
+I use `rebase = false` to preserve merge commits when pulling.
+Some teams prefer `rebase = true` for a linear history, but I
+find merge commits useful for understanding when changes were
+integrated. The `quiet = true` setting suppresses the commit
+summary output, which I find redundant given the `gz` function
+already shows what was committed.
+
+### GitHub Authentication
+
+```ini
+[credential "https://github.com"]
+    helper =
+    helper = !/opt/homebrew/bin/gh auth git-credential
+
+[credential "https://gist.github.com"]
+    helper =
+    helper = !/opt/homebrew/bin/gh auth git-credential
+```
+
+Rather than managing SSH keys or personal access tokens
+manually, I delegate authentication to the GitHub CLI (`gh`).
+After running `gh auth login` once, Git uses `gh` as a
+credential helper for all GitHub operations. The empty `helper =`
+line clears any previously configured helpers before adding the
+`gh` helper.
+
+### Git LFS
+
+```ini
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+```
+
+Git LFS (Large File Storage) handles binary files like datasets,
+images, and model weights. This block is added automatically by
+`git lfs install`. Files matching patterns in `.gitattributes`
+are stored externally and replaced with pointers in the
+repository, keeping the repository size manageable.
+
+### Useful Additions
+
+The configuration above is minimal. Consider adding:
+
+```ini
+[alias]
+    st = status --short
+    co = checkout
+    br = branch
+    lg = log --oneline --graph --decorate -20
+
+[diff]
+    colorMoved = default
+
+[merge]
+    conflictstyle = diff3
+```
+
+The `lg` alias provides a compact visual history. The
+`colorMoved` setting highlights moved lines in diffs (useful
+when refactoring). The `diff3` conflict style shows the common
+ancestor in merge conflicts, making resolution easier.
+
+## Readline Configuration
+
+Many command-line tools -- including R, Python's REPL, and
+various database clients -- use the GNU Readline library for
+line editing. By default, Readline uses Emacs-style keybindings,
+which conflicts with the vi mode configured in Zsh. The
+`.inputrc` file brings consistency across all Readline-based
+tools.
+
+`~/.inputrc`:
+
+```sh
+set editing-mode vi
+set show-mode-in-prompt on
+set vi-ins-mode-string \1\e[6 q\2
+set vi-cmd-mode-string \1\e[2 q\2
+```
+
+The `editing-mode vi` setting enables vi keybindings globally.
+The mode indicator settings change the cursor shape to signal
+which mode you are in: a thin bar in insert mode, a solid block
+in command mode. This matches the behaviour of many modern
+terminal-based editors.
+
+### Enhanced Completion
+
+```sh
+set completion-ignore-case on
+set show-all-if-ambiguous on
+set colored-stats on
+set mark-symlinked-directories on
+```
+
+Case-insensitive completion reduces friction when working with
+mixed-case filenames. The `show-all-if-ambiguous` setting
+displays all matches immediately rather than requiring a second
+Tab press. Coloured stats distinguish files from directories in
+completion lists, and symlinked directories get a trailing slash
+for clarity.
+
+### History Navigation
+
+```sh
+set history-preserve-point on
+"\e[A": history-search-backward
+"\e[B": history-search-forward
+```
+
+The `history-preserve-point` setting keeps the cursor position
+when navigating history. The key bindings make the up and down
+arrows search history for commands starting with whatever you
+have already typed -- the same behaviour as Zsh's
+history-substring-search.
+
+### Bell and Display
+
+```sh
+set bell-style none
+set enable-bracketed-paste on
+```
+
+I disable the terminal bell because I find it disruptive. The
+bracketed paste setting prevents pasted text from being
+interpreted as commands until you press Enter, which is a
+security feature when pasting from untrusted sources.
+
+---
+
+With these four configuration files -- `kitty.conf`, `.zshrc`,
+`.gitconfig`, and `.inputrc` -- the command-line environment
+becomes consistent and efficient across all tools.
+
+# Putting It Together: A Typical Session
+
+With the configuration in place, here is what a typical work
+session looks like:
+
+1. I open Kitty and type `prj` (thanks to `cdpath`, this
+   expands to `~/Dropbox/prj`)
+2. I type `j analysis` and autojump takes me to my most recent
+   analysis project
+3. I type `0` to jump to the project root, then `s` for scripts
+4. I type `rr`, fzf shows me all R files, I select one and it
+   opens in vim
+5. After editing, I type `gz` to stage, commit with a
+   conventional message, and push
+6. If I need to check a plot, `pp` finds and opens the PDF
+
+The individual pieces -- cdpath, autojump, fzf functions, the
+git workflow -- each save a few seconds. Over hundreds of
+commands per day, the cumulative effect is significant.
 
 # Checking Our Work: Verifying the Configuration
 
