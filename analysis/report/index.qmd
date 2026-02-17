@@ -5,9 +5,9 @@ subtitle: "Setting up Kitty terminal, Zsh shell, and
 author: "Ronald G. Thomas"
 date: "2026-02-16"
 categories: [terminal, zsh, macos, configuration, git, neovim]
-description: "I didn't really know how much time I was losing
-  to default terminal settings until I sat down and configured
-  Kitty and Zsh from scratch. Here's what I learned."
+description: "A systematic approach to configuring command-line
+  tools for data science workflows, covering terminal emulation,
+  shell configuration, version control, and readline settings."
 image: "media/images/kitty-icon.png"
 document-type: "blog"
 draft: false
@@ -21,47 +21,48 @@ format:
     code-tools: false
 ---
 
-![The Kitty terminal emulator logo -- a stylized cat face in
+![The Kitty terminal emulator logo, a stylized cat face in
 neon colors](media/images/kitty-icon.png){.img-fluid width=50%
 fig-align="center"}
 
-*The Kitty terminal emulator -- a GPU-accelerated terminal built
+*The Kitty terminal emulator: a GPU-accelerated terminal built
 for power users. Icon by [DinkDonk](https://github.com/DinkDonk/kitty-icon).*
 
 # Introduction
 
 
-The configuration is opinionated. It reflects the tools I reach
-for daily: R, Python, Docker, Git, and fuzzy finders. Your
-workflow will differ, but the structural decisions -- how to
-organise configuration files, which settings actually matter,
-and how to keep the whole thing portable -- should transfer.
+The configuration presented here is opinionated. It reflects a
+data science workflow centred on R, Python, Docker, Git, and
+fuzzy finders. Individual workflows will differ, but the
+structural decisions (how to organise configuration files, which
+settings provide measurable benefit, and how to maintain
+portability) should transfer to other contexts.
 
 This post covers four configuration files that work together:
 
-- **kitty.conf** -- terminal emulator (rendering, keybindings,
+- **kitty.conf**: terminal emulator (rendering, keybindings,
   appearance)
-- **.zshrc** -- shell (environment, history, aliases, functions)
-- **.gitconfig** -- version control (identity, authentication,
+- **.zshrc**: shell (environment, history, aliases, functions)
+- **.gitconfig**: version control (identity, authentication,
   behaviour)
-- **.inputrc** -- readline (vi mode consistency across CLI tools)
+- **.inputrc**: readline (vi mode consistency across CLI tools)
 
 ## Motivations
 
-- I was spending too many keystrokes navigating between project
-  directories, and `cd ../../..` chains were getting absurd.
-- My default terminal had a 2,000-line scrollback buffer, which
-  meant I lost model training output before I could review it.
-- I had no visual indicator of which git branch I was on, leading
-  to commits on the wrong branch more than once.
-- Plugin installation felt like guesswork -- I wanted a
-  cross-platform loading strategy that worked on both my Mac and
-  my Linux server.
-- I kept accumulating aliases in random places and needed a
+The following pain points motivated this configuration:
+
+- Excessive keystrokes navigating between project directories,
+  with `cd ../../..` chains becoming unwieldy.
+- Default terminal scrollback buffers of 2,000 lines, which
+  causes model training output to be lost before review.
+- Absence of visual indicators for the current git branch,
+  leading to commits on the wrong branch.
+- Plugin installation without a clear cross-platform loading
+  strategy that functions on both macOS and Linux.
+- Aliases accumulating in scattered locations rather than in a
   single, well-organised configuration file.
-- I wanted Kitty's image protocol for viewing matplotlib plots
-  directly in the terminal, rather than switching to a file
-  manager.
+- Lack of inline image support for viewing matplotlib plots
+  directly in the terminal.
 
 ## Objectives
 
@@ -80,12 +81,11 @@ This post covers four configuration files that work together:
 6. Configure cross-platform loading so the same dotfiles work on
    macOS and Linux without modification.
 
-I'm documenting my learning process here. If you spot errors or
-have better approaches, please let me know.
+Corrections and alternative approaches are welcome.
 
-![](media/images/terminal-logo.png){.img-fluid width=30% fig-align="center"}
+![An organized desk workspace with warm lighting](media/images/organized.jpg){.img-fluid}
 
-*A well-configured editor and terminal working together --
+*A well-organized workspace reflects a well-organized configuration:
 the goal of this entire setup.*
 
 # Prerequisites and Setup
@@ -138,10 +138,10 @@ generated it.
 
 # Getting Started: Kitty Terminal Configuration
 
-The configuration below is my complete `kitty.conf`, built up
-over several weeks. Rather than present it as a single block, I
-will walk through each section and explain the reasoning behind
-the settings.
+The configuration below presents a complete `kitty.conf`, built
+up iteratively. Rather than presenting it as a single block, this
+section walks through each portion and explains the reasoning
+behind the settings.
 
 `~/.config/kitty/kitty.conf`:
 
@@ -152,11 +152,11 @@ cursor_shape block
 cursor_blink_interval 0
 ```
 
-I prefer a solid block cursor with no blinking. The blinking
-cursor is distracting when reading code, and disabling it
-removes one source of visual noise. Some people prefer
-`cursor_shape beam` for a thinner insertion point, but I find
-the block easier to locate after looking away from the screen.
+A solid block cursor with no blinking reduces visual noise when
+reading code. The blinking cursor is distracting during extended
+work sessions. Some users prefer `cursor_shape beam` for a thinner
+insertion point, but the block cursor is easier to locate after
+shifting attention away from the screen.
 
 ## Scrollback Buffer
 
@@ -168,15 +168,15 @@ scrollback_fill_enlarged_window yes
 
 The default scrollback of 2,000 lines is inadequate for data
 science work. Model training runs, database query results, and
-error traces routinely exceed that limit. I increased this to
-50,000 lines, which covers most of my workflows without
-consuming excessive memory.
+error traces routinely exceed that limit. Increasing this to
+50,000 lines covers most workflows without consuming excessive
+memory.
 
-The `scrollback_pager` setting lets me open the entire terminal
-history in `less` by pressing `Ctrl+Shift+H`. This is invaluable
-when I need to search through a long training log for a specific
-metric or error message. The `+INPUT_LINE_NUMBER` flag positions
-the pager at the current scroll position rather than the top.
+The `scrollback_pager` setting opens the entire terminal history
+in `less` by pressing `Ctrl+Shift+H`. This proves invaluable when
+searching through long training logs for specific metrics or
+error messages. The `+INPUT_LINE_NUMBER` flag positions the pager
+at the current scroll position rather than the top.
 
 ## Performance Tuning
 
@@ -192,8 +192,8 @@ even when a long-running process is flooding the screen with
 output. The `repaint_delay 2` (milliseconds) keeps the display
 smooth when streaming data through command-line tools.
 
-I keep `sync_to_monitor yes` to avoid screen tearing, but if you
-notice lag during intensive output, setting it to `no` can help.
+The setting `sync_to_monitor yes` avoids screen tearing. If lag
+appears during intensive output, setting it to `no` can help.
 The trade-off is occasional visual artifacts during rapid
 scrolling.
 
@@ -223,10 +223,10 @@ tab_bar_style powerline
 tab_powerline_style slanted
 ```
 
-I place the tab bar at the bottom because my eyes naturally rest
-in the lower half of the screen when typing. The powerline style
-with slanted separators provides clear visual distinction between
-tabs without being distracting.
+Placing the tab bar at the bottom positions it in the natural
+resting area of the eyes when typing. The powerline style with
+slanted separators provides clear visual distinction between tabs
+without being distracting.
 
 ## Basic Key Bindings
 
@@ -245,11 +245,11 @@ map cmd+4 goto_tab 4
 map cmd+5 goto_tab 5
 ```
 
-These bindings mirror what I expect from other macOS
-applications. `Cmd+D` splits the current pane vertically (the
-`--cwd=current` flag ensures the new pane starts in the same
-directory). The tab shortcuts let me jump directly to a specific
-tab without cycling through them.
+These bindings mirror standard macOS application behaviour.
+`Cmd+D` splits the current pane vertically (the `--cwd=current`
+flag ensures the new pane starts in the same directory). The tab
+shortcuts allow jumping directly to a specific tab without
+cycling through them.
 
 ## Zoom and Font Size
 
@@ -261,10 +261,10 @@ map ctrl+shift+z toggle_layout stack
 map f11 toggle_layout stack
 ```
 
-Quick font resizing is essential when sharing my screen or
-reading dense output. The `toggle_layout stack` binding
-temporarily maximises the current pane, which is useful when I
-need to focus on one window without closing others.
+Quick font resizing is essential when sharing screens or reading
+dense output. The `toggle_layout stack` binding temporarily
+maximises the current pane, which is useful for focusing on one
+window without closing others.
 
 ## Clipboard Integration
 
@@ -276,8 +276,8 @@ copy_on_select clipboard
 
 The `copy_on_select clipboard` setting is a significant
 time-saver. Selecting text with the mouse automatically copies
-it to the clipboard, eliminating the extra `Cmd+C` keystroke. I
-use this constantly when copying error messages or code snippets.
+it to the clipboard, eliminating the extra `Cmd+C` keystroke.
+This proves useful when copying error messages or code snippets.
 
 ## Remote Control and Shell Integration
 
@@ -286,8 +286,8 @@ allow_remote_control yes
 listen_on unix:/tmp/kitty
 ```
 
-Remote control lets me script Kitty from the command line. For
-example, I can set window titles programmatically to track
+Remote control enables scripting Kitty from the command line. For
+example, window titles can be set programmatically to track
 different experiments:
 
 ```bash
@@ -307,10 +307,10 @@ bold_font        JetBrainsMono Nerd Font Mono Extra Bold
 bold_italic_font JetBrainsMono Nerd Font Mono Extra Bold Italic
 ```
 
-I use JetBrains Mono because it renders clearly at small sizes
-and includes programming ligatures that make operators like `!=`
-and `>=` more readable. The Nerd Font variant adds icons used by
-many command-line tools and prompt themes. At 14pt, the font is
+JetBrains Mono renders clearly at small sizes and includes
+programming ligatures that make operators like `!=` and `>=` more
+readable. The Nerd Font variant adds icons used by many
+command-line tools and prompt themes. At 14pt, the font is
 comfortable for extended reading without wasting screen space.
 
 ## Data Science Key Bindings
@@ -326,12 +326,12 @@ map f9 next_layout
 map ctrl+shift+l no_op
 ```
 
-These bindings support my data science workflow specifically.
+These bindings support data science workflows specifically.
 `Ctrl+Shift+H` opens the scrollback in the pager for searching
 through training logs. `Ctrl+Shift+I` launches `kitten icat` for
 viewing images directly in the terminal (useful for quick plot
 inspection). The split bindings (`Cmd+Shift+D` for horizontal,
-`F8` for vertical) let me monitor a training run in one pane
+`F8` for vertical) enable monitoring a training run in one pane
 while continuing to work in another.
 
 ## URL Detection and Notifications
@@ -344,8 +344,8 @@ enable_audio_bell yes
 URL detection makes it easy to open links to documentation,
 datasets, and GitHub repositories by clicking on them. The audio
 bell provides a notification when long-running processes
-complete. I often append `&& echo -e '\a'` to training commands
-so I hear when they finish.
+complete. Appending `&& echo -e '\a'` to training commands
+provides an audible signal upon completion.
 
 ## macOS-Specific Settings
 
@@ -369,9 +369,9 @@ include current-theme.conf
 # END_KITTY_THEME
 ```
 
-I use a dark theme (3024 Night) stored in a separate file. Kitty
-manages this through its theme system, which makes it easy to
-switch themes without editing the main configuration. Run
+This example uses a dark theme (3024 Night) stored in a separate
+file. Kitty manages themes through its theme system, which makes
+switching themes easy without editing the main configuration. Run
 `kitty +kitten themes` to browse and install themes.
 
 ---
@@ -622,6 +622,11 @@ roughly 200-400ms to shell startup time, which is noticeable
 when opening new terminal tabs. Hardcoding `/opt/homebrew`
 (the default on Apple Silicon Macs) eliminates this delay.
 
+![A calm workspace with soft lighting](media/images/softmood.png){.img-fluid}
+
+*The rhythm of configuration: small decisions that compound into
+a seamless workflow.*
+
 ### FZF Configuration
 
 ```sh
@@ -715,6 +720,11 @@ moves files to the trash rather than deleting them permanently.
 I keep the `rm` override commented out because it breaks scripts
 that legitimately need to delete files, but uncommenting it
 provides an extra safety net during interactive use.
+
+![UCSD Geisel Library at dusk](media/images/ucsd-geisel-library.jpg){.img-fluid}
+
+*Configuration as architecture: each layer built deliberately on
+the one below.*
 
 ### Fuzzy Finding Functions
 
@@ -927,6 +937,9 @@ alias, I go straight to the aliases section. When a plugin
 breaks, I look at plugin management. This organisational
 discipline saves time every time I edit the file.
 
+![Git logo](media/images/git-logo.png){.img-fluid width=40%
+fig-align="center"}
+
 ## Git Configuration
 
 Git is central to the workflow described above -- the `gz`
@@ -1030,6 +1043,9 @@ The `lg` alias provides a compact visual history. The
 `colorMoved` setting highlights moved lines in diffs (useful
 when refactoring). The `diff3` conflict style shows the common
 ancestor in merge conflicts, making resolution easier.
+
+![Vim logo](media/images/vim.png){.img-fluid width=30%
+fig-align="center"}
 
 ## Readline Configuration
 
@@ -1312,6 +1328,11 @@ thoughtfully configured terminal makes possible.*
    for a global hotkey to summon Kitty instantly.
 6. Write a shell function that profiles `.zshrc` startup time
    and identifies slow sections automatically.
+
+![A lofi workspace with warm ambient lighting](media/images/lofi.jpg){.img-fluid}
+
+*The destination: a command line that works with you, not
+against you.*
 
 # Wrapping Up
 
