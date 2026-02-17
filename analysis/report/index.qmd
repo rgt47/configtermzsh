@@ -8,7 +8,7 @@ categories: [terminal, zsh, macos, configuration, git, neovim]
 description: "I didn't really know how much time I was losing
   to default terminal settings until I sat down and configured
   Kitty and Zsh from scratch. Here's what I learned."
-image: "media/images/hero.png"
+image: "media/images/kitty-icon.png"
 document-type: "blog"
 draft: false
 execute:
@@ -21,11 +21,12 @@ format:
     code-tools: false
 ---
 
-![A kitty terminal emulator showing a customised prompt and colour
-scheme](media/images/hero.png){.img-fluid width=80%}
+![The Kitty terminal emulator logo -- a stylized cat face in
+neon colors](media/images/kitty-icon.png){.img-fluid width=50%
+fig-align="center"}
 
-*kitty with a Dracula-inspired colour scheme -- the kind of
-environment this post helps you build.*
+*The Kitty terminal emulator -- a GPU-accelerated terminal built
+for power users. Icon by [DinkDonk](https://github.com/DinkDonk/kitty-icon).*
 
 # Introduction
 
@@ -33,8 +34,17 @@ environment this post helps you build.*
 The configuration is opinionated. It reflects the tools I reach
 for daily: R, Python, Docker, Git, and fuzzy finders. Your
 workflow will differ, but the structural decisions -- how to
-organise a `.zshrc`, which Kitty settings actually matter, and
-how to keep the whole thing portable -- should transfer.
+organise configuration files, which settings actually matter,
+and how to keep the whole thing portable -- should transfer.
+
+This post covers four configuration files that work together:
+
+- **kitty.conf** -- terminal emulator (rendering, keybindings,
+  appearance)
+- **.zshrc** -- shell (environment, history, aliases, functions)
+- **.gitconfig** -- version control (identity, authentication,
+  behaviour)
+- **.inputrc** -- readline (vi mode consistency across CLI tools)
 
 ## Motivations
 
@@ -55,17 +65,20 @@ how to keep the whole thing portable -- should transfer.
 
 ## Objectives
 
-1. Install and configure Kitty terminal with a merged
-   configuration covering fonts, colours, performance, and
-   data-science-specific settings.
+1. Install and configure Kitty terminal with settings for fonts,
+   colours, performance, and data-science workflows.
 2. Set up Zsh with a modular `.zshrc` that handles environment
    variables, history, completion, prompts, plugins, aliases, and
    custom functions in clearly separated sections.
-3. Implement productivity shortcuts -- directory jumping,
+3. Configure Git with GitHub CLI authentication, sensible
+   defaults, and useful aliases.
+4. Set up Readline for consistent vi-mode keybindings across all
+   CLI tools (R, Python, database clients).
+5. Implement productivity shortcuts -- directory jumping,
    fzf-powered file finding, and safety aliases -- that reduce
    repetitive typing.
-4. Configure cross-platform plugin loading so the same `.zshrc`
-   works on macOS and Linux without modification.
+6. Configure cross-platform loading so the same dotfiles work on
+   macOS and Linux without modification.
 
 I'm documenting my learning process here. If you spot errors or
 have better approaches, please let me know.
@@ -1152,10 +1165,36 @@ rm test.txt
 #   looking for."
 ```
 
+**Check Git configuration:**
+
+```bash
+git config --list --show-origin | head -20
+git config user.name
+git config user.email
+gh auth status
+```
+
+The first command shows all settings and where they come from
+(useful for debugging). The `gh auth status` confirms GitHub CLI
+authentication is working.
+
+**Check Readline (in R or Python):**
+
+```bash
+R --quiet
+# Press Escape, then 'k' to move up in history (vi command mode)
+# Press 'i' to return to insert mode
+# Cursor should change shape between modes
+```
+
+If the cursor does not change shape, verify that `.inputrc`
+exists and that the terminal supports cursor shape changes
+(Kitty does; some older terminals do not).
+
 If any plugin fails to load, the `[[ -f ... ]] && source ...`
-guards in section 6 mean Zsh will continue without error. This
-is deliberate: I would rather have a working shell with a
-missing plugin than a broken shell.
+guards mean Zsh will continue without error. This is deliberate:
+I would rather have a working shell with a missing plugin than a
+broken shell.
 
 ## Things to Watch Out For
 
@@ -1282,16 +1321,16 @@ prevents a mistake, and every navigation shortcut that avoids a
 full path -- they add up across thousands of commands per week.
 
 What I found most valuable was the organisational discipline:
-ten numbered sections in `.zshrc`, one merged `kitty.conf`, and
-a clear separation between the terminal emulator and the shell.
-When something breaks, I know exactly where to look. When I want
-to add something new, I know exactly where to put it.
+numbered sections in `.zshrc`, grouped settings in `kitty.conf`,
+and consistent vi-mode keybindings across all tools via
+`.inputrc`. When something breaks, I know exactly where to look.
+When I want to add something new, I know exactly where to put it.
 
 If you are starting from a default terminal setup, I would
-suggest focusing on three things first: a Nerd Font for icon
-support, `cdpath` for directory navigation, and `fzf` for fuzzy
-file finding. Those three changes alone made the biggest
-difference in my daily workflow.
+suggest focusing on four things first: a Nerd Font for icon
+support, `cdpath` for directory navigation, `fzf` for fuzzy
+file finding, and `.inputrc` for vi-mode consistency. Those
+changes made the biggest difference in my daily workflow.
 
 **Main takeaways:**
 
@@ -1300,8 +1339,12 @@ difference in my daily workflow.
 - `cdpath` and `auto_pushd` eliminate most `cd ../../..` chains.
 - Replacing `rm` with a trash alias prevents accidental data
   loss.
-- Cross-platform plugin loading via `$OSTYPE` keeps one `.zshrc`
-  working on both macOS and Linux.
+- Cross-platform logic via `$OSTYPE` keeps dotfiles working on
+  both macOS and Linux.
+- GitHub CLI authentication (`gh auth`) simplifies credential
+  management.
+- Readline configuration ensures vi-mode works in R, Python, and
+  other CLI tools -- not just Zsh.
 
 # See Also
 
@@ -1320,6 +1363,12 @@ difference in my daily workflow.
   -- the official reference for all configuration options
 - [Zsh Documentation](https://zsh.sourceforge.io/Doc/) --
   official manual covering options, completion, and scripting
+- [Git Configuration](https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration)
+  -- official guide to `.gitconfig` settings
+- [GitHub CLI](https://cli.github.com/) -- the `gh` tool used
+  for authentication in this configuration
+- [GNU Readline](https://tiswww.case.edu/php/chet/readline/readline.html)
+  -- official documentation for `.inputrc` settings
 - [FZF](https://github.com/junegunn/fzf) -- the fuzzy finder
   used throughout this configuration
 - [Ripgrep](https://github.com/BurntSushi/ripgrep) -- the
@@ -1340,6 +1389,8 @@ difference in my daily workflow.
 
 - Kitty: `~/.config/kitty/kitty.conf`
 - Zsh: `~/.zshrc`
+- Git: `~/.gitconfig`
+- Readline: `~/.inputrc`
 - Environment secrets: `~/.env` (not version-controlled)
 
 **Version checks:**
@@ -1347,6 +1398,8 @@ difference in my daily workflow.
 ```bash
 zsh --version
 kitty --version
+git --version
+gh --version      # GitHub CLI
 brew --version    # macOS only
 fzf --version
 rg --version
