@@ -1,1 +1,0 @@
-author: "Ronald G. Thomas"
