@@ -399,385 +399,174 @@ terminal font rendering and colour support.*
 
 ## Zsh Shell Configuration
 
-With Kitty configured, the next layer is the shell itself. This
-`.zshrc` is organised into twelve numbered sections, each
-handling one concern. The following subsections walk through each
-portion and explain the reasoning.
+With Kitty configured, the next layer is the shell. The full
+`.zshrc` covers standard concerns (PATH, completion, colour
+aliases, conda init, NVM loading) that are well documented
+elsewhere. This section focuses on the features that
+specifically support data science workflows: secrets management,
+LaTeX and Docker integration, project navigation, fuzzy file
+finding, and a guided git commit function.
 
-A key design principle: every optional dependency is wrapped in
-a conditional check. If a tool like `autojump` or `ripgrep` is
-not installed, the configuration degrades gracefully rather than
-throwing errors.
+A design principle throughout: every optional dependency is
+wrapped in a conditional check (`[[ -f ... ]] && source ...`).
+If a tool is not installed, the shell degrades gracefully rather
+than throwing errors.
 
-`~/.zshrc`:
+`~/.zshrc` (data-science-relevant excerpts):
 
-### Environment and Security
+### Secrets and Build Environment
 
 ```sh
 [[ -f ~/.env ]] && source ~/.env
-```
 
-Sensitive information (API keys, tokens, database credentials)
-lives in a separate `~/.env` file that is not version-controlled.
-This single line sources it if it exists and does nothing if it
-does not. Secrets should never be committed to a dotfiles
-repository.
-
-### Core Shell Configuration
-
-```sh
-export EDITOR="vim"
-export VIMINIT='source ~/.config/vim/vimrc'
 export DOCKER_BUILDKIT=1
 export GITHUB_USER="mygit"
-
 export TEXINPUTS=".:$HOME/shr/images:$HOME/shr:"
 export BIBINPUTS=".:$HOME/shr/bibfiles:$HOME/shr"
 ```
 
-These exports set the default editor and configure paths for
-LaTeX. The `DOCKER_BUILDKIT=1` enables Docker's improved build
-system, which provides better caching and parallel builds. The
-`GITHUB_USER` variable is used by various scripts that interact
-with GitHub.
+API keys, database credentials, and tokens belong in a separate
+`~/.env` file that is never version-controlled. This one-liner
+sources it when present and silently skips it otherwise.
 
-### Platform-Specific PATH Configuration
+`DOCKER_BUILDKIT=1` enables Docker's improved build engine,
+which provides better layer caching and parallel stage execution.
+For research compendia that build inside Docker, this can cut
+image rebuild times substantially. `TEXINPUTS` and `BIBINPUTS`
+tell LaTeX where to find shared images and bibliography files,
+so multiple manuscripts can reference the same `.bib` without
+duplicating it into each project.
 
-```sh
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    export HOMEBREW_AUTO_UPDATE_SECS="604800"
-    export PATH="$HOME/bin:$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
-else
-    export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
-fi
-```
-
-This is the first example of cross-platform logic. On macOS, the
-configuration includes Homebrew's paths and throttles automatic
-updates to once per week (604800 seconds). On Linux, the Homebrew
-paths are omitted since they do not exist. The `$OSTYPE` variable
-is set by Zsh and reliably distinguishes between operating
-systems.
-
-Note the security consideration: a leading `.` should not appear
-in PATH. Having `.` in PATH means the shell will execute programs
-in the current directory, which is a security risk when changing
-into untrusted directories.
-
-### Core Shell Options
+### Project Navigation with cdpath
 
 ```sh
-cdpath=($HOME/Dropbox $HOME/Dropbox/prj $HOME/Dropbox/sbx $HOME/Dropbox/work)
-
-setopt auto_cd auto_pushd pushd_ignore_dups pushdminus
-setopt PROMPT_SUBST
-
-bindkey -v
-bindkey -s -- '--' '_'
+cdpath=($HOME/Dropbox $HOME/Dropbox/prj
+        $HOME/Dropbox/sbx $HOME/Dropbox/work)
 ```
 
-The `cdpath` variable is one of Zsh's most underrated features.
-With this setting, typing `cd myproject` from anywhere causes
-Zsh to search `~/Dropbox/prj/myproject` automatically. Combined
-with `auto_cd` (which permits omitting `cd` entirely and just
-typing a directory name), navigation becomes remarkably fast.
+`cdpath` is one of Zsh's most underrated features for anyone
+who maintains many project directories. With this setting,
+typing `cd myproject` from any location causes Zsh to search
+`~/Dropbox/prj/myproject` automatically. Combined with
+`setopt auto_cd` (which permits typing a directory name without
+`cd`), navigating between analysis projects becomes a single
+word rather than a full path.
 
-The `auto_pushd` option maintains a directory stack that can be
-navigated with numbered aliases (`1`, `2`, `3`, etc.) defined
-later. `PROMPT_SUBST` enables variable expansion in the prompt.
+The trade-off is name collisions: if two directories in `cdpath`
+contain subdirectories with the same name, Zsh picks the first
+match. Keeping project names unique across the listed directories
+avoids surprises.
 
-The vi mode (`bindkey -v`) is configured for users whose muscle
-memory expects hjkl navigation and Escape to exit insert mode.
-The `--` to `_` binding is a small convenience: typing two
-hyphens produces an underscore, which is faster for snake_case
-identifiers.
-
-### History Management
+### History for Long-Running Jobs
 
 ```sh
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE=100000
 SAVEHIST=100000
-setopt SHARE_HISTORY HIST_IGNORE_DUPS INC_APPEND_HISTORY HIST_VERIFY
+setopt SHARE_HISTORY HIST_IGNORE_DUPS
+setopt INC_APPEND_HISTORY HIST_VERIFY
 ```
 
-Keeping 100,000 lines of history is reasonable because disk space
-is cheap and recalling commands from weeks ago is frequently
-necessary. The options work together:
+A 100,000-line history buffer is not excessive for data science
+work. Model training runs, pipeline executions, and database
+queries generate commands worth recalling weeks later. The
+options serve complementary purposes:
 
 - `SHARE_HISTORY` syncs history across all terminal sessions in
-  real time (some users find this disorienting)
-- `HIST_IGNORE_DUPS` avoids cluttering history with repeated
-  commands
+  real time, so a command run in one tab is immediately available
+  in another
+- `HIST_IGNORE_DUPS` prevents repeated `git status` or `make r`
+  calls from cluttering the history
 - `INC_APPEND_HISTORY` writes each command immediately rather
-  than at session end
-- `HIST_VERIFY` shows the expanded command before executing when
-  using history substitution (e.g., `!!`), providing a chance to
-  review before running
+  than at session end, preventing loss if a terminal crashes
+  mid-experiment
+- `HIST_VERIFY` shows the expanded command before executing
+  history substitutions like `!!`, providing a review step
 
-### Completion System
-
-```sh
-autoload -Uz compinit
-if [[ -n ${ZDOTDIR}/.zcompdump(#qN.mh+24) ]]; then
-    compinit
-else
-    compinit -C
-fi
-compdef _dirs d
-```
-
-The completion system is one of Zsh's strengths, but initialising
-it on every shell startup adds latency. This code caches the
-completion dump file and only regenerates it if it is more than
-24 hours old. The result is noticeably faster shell startup.
-
-The `compdef _dirs d` line tells Zsh to use directory completion
-for the custom `d` function defined later.
-
-### Prompt and Git Integration
+### Git Branch in the Prompt
 
 ```sh
 autoload -Uz vcs_info
 precmd() { vcs_info }
 zstyle ':vcs_info:git:*' formats '%b '
 
-PROMPT='%F{cyan}%m%f %F{green}%*%f %F{yellow}${${PWD:A}/$HOME/~}%f %F{red}${vcs_info_msg_0_}%f$ %(?:☕  :☔  )'
+PROMPT='%F{cyan}%m%f %F{green}%*%f '
+PROMPT+='%F{yellow}${${PWD:A}/$HOME/~}%f '
+PROMPT+='%F{red}${vcs_info_msg_0_}%f$ '
+PROMPT+='%(?:☕  :☔  )'
 ```
 
-This prompt displays:
-
-- Hostname in cyan (useful when SSHing between machines)
-- Current time in green
-- Working directory in yellow (with `~` substituted for `$HOME`)
-- Git branch in red (via `vcs_info`)
-- A coffee cup if the last command succeeded, a rain cloud if it
-  failed
-
-The `vcs_info` approach is lightweight compared to Oh My Zsh's
-git plugin. It runs in the `precmd` hook before each prompt and
-extracts just the branch name. This helps prevent committing to
-the wrong branch.
-
-### Plugin Management
-
-```sh
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    [[ -s /home/z/.autojump/etc/profile.d/autojump.sh ]] && source /home/z/.autojump/etc/profile.d/autojump.sh
-    [[ -f ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-    [[ -f ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    if [[ -z "$BREW_PREFIX" ]]; then
-        export BREW_PREFIX="/opt/homebrew"
-    fi
-    [[ -f "$BREW_PREFIX/etc/profile.d/autojump.sh" ]] && source "$BREW_PREFIX/etc/profile.d/autojump.sh"
-    [[ -f "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && source "$BREW_PREFIX/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
-    [[ -f "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && source "$BREW_PREFIX/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
-fi
-
-ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=red,bold,underline'
-```
-
-Three plugins are employed here, each addressing a specific
-friction point in command-line work:
-
-**autojump** maintains a database of directories you visit,
-weighted by frequency. After using it for a few days, you can
-type `j proj` to jump to `~/Dropbox/prj/myproject` without
-typing the full path. It learns from your behaviour: the more
-often you visit a directory, the higher it ranks in fuzzy
-matching. Install with `brew install autojump` (macOS) or
-`apt install autojump` (Ubuntu). The only downside is the
-initial learning period; it takes a week or two of normal usage
-before the database becomes useful.
-
-**zsh-autosuggestions** displays ghost text showing a prediction
-of what the user might type next, based on command history. As
-typing begins with `git`, it might suggest `git status` in grey
-text. Pressing the right arrow key accepts the entire suggestion,
-or `Ctrl+E` accepts just to the end of the current word. This
-plugin dramatically reduces typing for repetitive commands.
-Install with `brew install zsh-autosuggestions` (macOS) or clone
-from GitHub on Linux. The `ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE`
-setting controls how suggestions appear; red bold underline makes
-them visually distinct from actual typing.
-
-**zsh-syntax-highlighting** provides real-time syntax
-highlighting as you type. Valid commands appear in green,
-unknown commands in red, quoted strings in yellow, and paths
-that exist are underlined. This catches typos before you press
-Enter: if `git comit` appears in red, you know immediately that
-it is not a valid command. Install with
-`brew install zsh-syntax-highlighting` (macOS) or clone from
-GitHub on Linux. Note that this plugin must be sourced last in
-your `.zshrc` to work correctly with other plugins.
-
-The conditional loading pattern (`[[ -f ... ]] && source ...`)
-means Zsh will not error if a plugin is missing. This is
-essential for sharing the same `.zshrc` across machines where
-not all plugins are installed. If autojump is not present, that
-line does nothing and the shell continues to load.
-
-On macOS, caching `BREW_PREFIX` avoids calling `brew --prefix`
-on every shell startup. Without caching, `brew --prefix` adds
-roughly 200-400ms to shell startup time, which is noticeable
-when opening new terminal tabs. Hardcoding `/opt/homebrew`
-(the default on Apple Silicon Macs) eliminates this delay.
+The prompt displays hostname, time, working directory, and the
+current git branch in red. A coffee cup indicates the previous
+command succeeded; a rain cloud indicates failure. This is
+lightweight compared to Oh My Zsh: `vcs_info` runs in the
+`precmd` hook and extracts only the branch name, with no
+additional git calls. The branch display prevents a common error
+in research projects -- committing to the wrong branch when
+switching between experiments.
 
 ![A calm workspace with soft lighting](media/images/softmood.png){.img-fluid}
 
 *The rhythm of configuration: small decisions compound into a
 seamless workflow.*
 
-### FZF Configuration
+### Fuzzy Finding with fzf and ripgrep
 
 ```sh
 if type rg &> /dev/null; then
     export FZF_DEFAULT_COMMAND='rg --files --hidden'
-    export FZF_DEFAULT_OPTS='-m --height 50% --border --reverse'
+    export FZF_DEFAULT_OPTS='-m --height 50% --border
+      --reverse'
 fi
 ```
 
-This configures `fzf` (fuzzy finder) to use `ripgrep` as its file
-source, but only if `ripgrep` is installed. The options enable
-multi-select (`-m`), use half the terminal height, add a border,
-and reverse the list so matches appear at the bottom near the
-prompt.
+When `ripgrep` is installed, `fzf` uses it as its file source
+instead of the default `find`. The result is faster indexing
+(ripgrep respects `.gitignore`) and multi-select support (`-m`).
+The `--reverse` flag places matches near the prompt rather than
+at the top of the screen, reducing eye movement.
 
-### Navigation Aliases
-
-```sh
-alias -- -='cd -'
-alias -g ...='../..'
-
-alias 1='cd -1'
-alias 2='cd -2'
-alias 3='cd -3'
-alias 4='cd -4'
-alias 5='cd -5'
-```
-
-The `-` alias allows typing just `-` to return to the previous
-directory. The `...` global alias expands to `../..` anywhere in
-a command. The numbered aliases navigate the directory stack
-maintained by `auto_pushd`.
-
-### File Listing with Colour
+Three functions build on this foundation to create
+domain-specific file finders:
 
 ```sh
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    if command -v gls &> /dev/null; then
-        alias ls='gls --color=auto'
-        alias ll='gls -lh --color=auto'
-    else
-        alias ls='ls -G'
-        alias ll='ls -lhG'
-    fi
-else
-    alias ls='ls --color=auto'
-    alias ll='ls -lh --color=auto'
-fi
-
-alias lt='eza -lrha -sold'
-alias grep='grep --color=auto'
-```
-
-macOS ships with BSD `ls`, which uses `-G` for colour. Linux
-uses GNU `ls`, which uses `--color=auto`. If GNU coreutils is
-installed on macOS (via `brew install coreutils`), `gls` provides
-consistency. The `lt` alias uses `eza` (a modern `ls`
-replacement) to list files sorted by modification time.
-
-### Application Shortcuts
-
-```sh
-alias za='zathura'
-alias hh='history'
-alias R='R --quiet --no-save'
-alias mm='mutt'
-alias v='vim'
-alias ZZ='exit'
-
-alias vc='vim ~/.config/vim/vimrc'
-alias vz='vim ~/Dropbox/dotfiles/zshrc'
-alias sz='source ~/.zshrc'
-```
-
-These are simple shortcuts for frequently used programs. The
-`R` alias starts R without the startup message and without
-prompting to save the workspace on exit. `ZZ` mirrors vim's exit
-command. The config editing aliases (`vc`, `vz`, `sz`) make
-editing and reloading configuration files efficient.
-
-### Safety Aliases
-
-```sh
-alias tp='trash-put -v'
-# alias rm='echo "This is not the command you are looking for."; false'
-```
-
-After accidentally deleting important data, many users adopt
-`trash-put` from the `trash-cli` package. The `tp` alias moves
-files to the trash rather than deleting them permanently. The
-`rm` override is kept commented out because it breaks scripts
-that legitimately need to delete files, but uncommenting it
-provides an extra safety net during interactive use.
-
-![UCSD Geisel Library at dusk](media/images/ucsd-geisel-library.jpg){.img-fluid}
-
-*Configuration as architecture, with each layer built
-deliberately upon the one below.*
-
-### Fuzzy Finding Functions
-
-```sh
-d() {
-    if [[ -n $1 ]]; then
-        dirs "$@"
-    else
-        dirs -v | head -n 10
-    fi
-}
-
 ff() {
     local file
-    file=$(rg --files "${1:-.}" 2>/dev/null | fzf --select-1 --exit-0)
-    if [[ -n "$file" ]]; then
-        cd "$(dirname "$file")" || return 1
-    fi
+    file=$(rg --files "${1:-.}" 2>/dev/null \
+      | fzf --select-1 --exit-0)
+    [[ -n "$file" ]] && cd "$(dirname "$file")"
 }
 
 pp() {
     local pdf
     pdf=$(rg --files 2>/dev/null | rg "\.pdf$" | fzf)
-    if [[ -n "$pdf" ]]; then
-        zathura "$pdf" &
-    fi
+    [[ -n "$pdf" ]] && zathura "$pdf" &
 }
 
 rr() {
     local rfile
-    rfile=$(rg --files 2>/dev/null | rg "\.(R|Rmd)$" | fzf)
-    if [[ -n "$rfile" ]]; then
-        vim "$rfile"
-    fi
+    rfile=$(rg --files 2>/dev/null \
+      | rg "\.(R|Rmd|qmd)$" | fzf)
+    [[ -n "$rfile" ]] && vim "$rfile"
 }
 ```
 
-These functions combine `ripgrep` with `fzf` for rapid file
-navigation:
+- `ff` finds any file by fuzzy name match and `cd`s to its
+  directory. Useful when you know a filename but not its
+  location in a deeply nested project.
+- `pp` finds PDF files (manuscripts, figures, references) and
+  opens them in Zathura. In a research compendium with dozens of
+  rendered outputs, this replaces manual file browsing.
+- `rr` finds R, Rmd, or Qmd files and opens them in vim. During
+  analysis work, this is faster than navigating directory trees
+  to locate a specific script.
 
-- `d` shows the directory stack (up to 10 entries)
-- `ff` finds any file and `cd`s to its directory
-- `pp` finds PDF files and opens them in Zathura
-- `rr` finds R or Rmd files and opens them in vim
+The pattern is consistent: ripgrep lists files, a regex filter
+narrows the type, fzf presents an interactive selection, and an
+action follows. Adding new finders (e.g., for `.py` or `.csv`
+files) requires only copying the pattern and changing the regex.
 
-The pattern is consistent: use `ripgrep` to list files, pipe to
-`fzf` for selection, then take action on the result. These
-functions can largely replace graphical file managers for many
-workflows.
-
-### Git Workflow Function
+### Guided Git Commits
 
 ```sh
 gz() {
@@ -786,41 +575,33 @@ gz() {
         return 1
     fi
 
-    echo "Current git status:"
     git status --short
-    echo ""
-
     git add .
 
-    echo "═══════════════════════════════════════════════════════════"
     git diff --cached --stat
-    echo ""
     git diff --cached | head -30
-    echo ""
 
-    local summary=$(git diff --cached --name-only | head -5 | tr '\n' ', ' | sed 's/,$//')
-    local file_count=$(git diff --cached --name-only | wc -l)
+    local summary=$(git diff --cached --name-only \
+      | head -5 | tr '\n' ', ' | sed 's/,$//')
+    local file_count=$(git diff --cached --name-only \
+      | wc -l)
     if [[ $file_count -gt 5 ]]; then
-        summary="$summary and $((file_count - 5)) more files"
+        summary="$summary and $((file_count - 5)) more"
     fi
 
     echo "Commit type:"
-    echo "  1) feat   2) fix   3) refactor   4) docs   5) test"
-    echo "  6) chore  7) perf  8) ci         9) style"
-    echo -n "Select (1-9): "
+    echo "  1) feat  2) fix  3) refactor  4) docs"
+    echo "  5) test  6) chore  7) perf  8) ci"
+    echo -n "Select (1-8): "
     read type_choice
 
+    local type
     case $type_choice in
-        1) local type="feat" ;;
-        2) local type="fix" ;;
-        3) local type="refactor" ;;
-        4) local type="docs" ;;
-        5) local type="test" ;;
-        6) local type="chore" ;;
-        7) local type="perf" ;;
-        8) local type="ci" ;;
-        9) local type="style" ;;
-        *) local type="chore" ;;
+        1) type="feat" ;;    2) type="fix" ;;
+        3) type="refactor" ;; 4) type="docs" ;;
+        5) type="test" ;;    6) type="chore" ;;
+        7) type="perf" ;;    8) type="ci" ;;
+        *) type="chore" ;;
     esac
 
     echo -n "Scope (optional): "
@@ -828,76 +609,44 @@ gz() {
     echo -n "Description (optional): "
     read description
 
-    local commit_msg="$type"
-    [[ -n "$scope" ]] && commit_msg="$commit_msg($scope)"
-    commit_msg="$commit_msg: $summary"
-    [[ -n "$description" ]] && commit_msg="$commit_msg"$'\n\n'"$description"
+    local msg="$type"
+    [[ -n "$scope" ]] && msg="$msg($scope)"
+    msg="$msg: $summary"
+    [[ -n "$description" ]] && msg="$msg"$'\n\n'"$description"
 
-    git commit -m "$commit_msg"
+    git commit -m "$msg"
     [[ $? -ne 0 ]] && return 1
-
     git push
 }
 ```
 
-The `gz` function implements a guided git workflow: stage all
-changes, show a summary, prompt for a conventional commit type
-and optional scope, generate a commit message, and push. This
-enforces consistent commit message formatting without requiring
-the user to remember the exact syntax each time.
+Research projects accumulate commits quickly -- adjusting model
+parameters, updating figures, editing manuscript text. Without
+discipline, commit history becomes a wall of 'update' messages
+that are useless for understanding what changed and why.
 
-### External Tool Integration
+`gz` enforces conventional commit formatting by walking through
+each step interactively: stage all changes, display a summary,
+prompt for a commit type (feat, fix, docs, etc.) and optional
+scope, then generate a structured message and push. The function
+is opinionated about workflow (it stages everything and pushes
+immediately), which suits solo research projects where the
+priority is keeping the remote in sync. For collaborative work
+with pull requests, the auto-push behaviour would need removal.
 
-```sh
-export NVM_DIR="$HOME/.nvm"
-[[ -s "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"
-[[ -s "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"
+![UCSD Geisel Library at dusk](media/images/ucsd-geisel-library.jpg){.img-fluid}
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    if [[ -z "$DISPLAY" ]]; then
-        export DISPLAY=:0
-    fi
-fi
-```
+*Configuration as architecture, with each layer built
+deliberately upon the one below.*
 
-NVM (Node Version Manager) is loaded conditionally. The
-`DISPLAY` variable setup is for running GUI applications inside
-Docker containers on macOS via XQuartz.
-
-### Conda Initialization
-
-```sh
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    _CONDA_ROOT="/opt/miniconda3"
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    _CONDA_ROOT="$HOME/miniconda3"
-fi
-
-__conda_setup="$('/opt/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/opt/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/opt/miniconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/opt/miniconda3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-```
-
-This block is generated by `conda init` and handles setting up
-the Conda environment. The paths are kept platform-aware, though
-the initialization block itself uses hardcoded paths that would
-need editing on a different machine.
-
-### Project Navigation (ZZCOLLAB)
+### Research Compendium Navigation (ZZCOLLAB)
 
 ```sh
 _zzcollab_root() {
     local dir="$PWD"
     while [[ "$dir" != "/" ]]; do
-        if [[ -f "$dir/DESCRIPTION" ]] || [[ -f "$dir/.zzcollab_project" ]]; then
+        if [[ -f "$dir/DESCRIPTION" ]] \
+          || [[ -f "$dir/.zzcollab_project" ]]; then
             echo "$dir"
             return 0
         fi
@@ -906,40 +655,58 @@ _zzcollab_root() {
     return 1
 }
 
-a() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis" || echo "Not in ZZCOLLAB project"; }
-s() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/scripts" || echo "Not in ZZCOLLAB project"; }
-p() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/report" || echo "Not in ZZCOLLAB project"; }
-f() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/analysis/figures" || echo "Not in ZZCOLLAB project"; }
-r() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root/R" || echo "Not in ZZCOLLAB project"; }
-0() { local root=$(_zzcollab_root); [[ -n "$root" ]] && cd "$root" || echo "Not in ZZCOLLAB project"; }
+a() { local r=$(_zzcollab_root)
+      [[ -n "$r" ]] && cd "$r/analysis"; }
+s() { local r=$(_zzcollab_root)
+      [[ -n "$r" ]] && cd "$r/analysis/scripts"; }
+p() { local r=$(_zzcollab_root)
+      [[ -n "$r" ]] && cd "$r/analysis/report"; }
+f() { local r=$(_zzcollab_root)
+      [[ -n "$r" ]] && cd "$r/analysis/figures"; }
+r() { local r=$(_zzcollab_root)
+      [[ -n "$r" ]] && cd "$r/R"; }
+0() { local r=$(_zzcollab_root)
+      [[ -n "$r" ]] && cd "$r"; }
 
 mr() {
     local root=$(_zzcollab_root)
-    [[ -z "$root" ]] && echo "Not in ZZCOLLAB project" && return 1
-    [[ ! -f "$root/Makefile" ]] && echo "No Makefile in: $root" && return 1
+    [[ -z "$root" ]] && return 1
+    [[ ! -f "$root/Makefile" ]] && return 1
     make -C "$root" "${@:-r}"
 }
 ```
 
-These functions support a research compendium workflow. From
-anywhere inside a project, single-letter commands navigate to
-standard directories: `a` for analysis, `s` for scripts, `p` for
-the report, `f` for figures, `r` for R source files, and `0` for
-the project root. The `mr` function runs Make targets from any
-subdirectory.
+These functions address a specific friction point in research
+compendium projects: navigating a standardised directory
+structure from any subdirectory. The `_zzcollab_root` helper
+walks up the directory tree looking for a `DESCRIPTION` file
+(standard R package marker) or a `.zzcollab_project` marker.
+Once found, single-letter commands jump to standard locations:
 
-The `_zzcollab_root` helper walks up the directory tree looking
-for a `DESCRIPTION` file (standard R package marker) or a
-`.zzcollab_project` file (a project marker). This pattern allows
-project-aware commands without hardcoding paths.
+- `0` -- project root
+- `a` -- `analysis/`
+- `s` -- `analysis/scripts/`
+- `p` -- `analysis/report/` (the manuscript or blog post)
+- `f` -- `analysis/figures/`
+- `r` -- `R/` (reusable functions)
+
+The `mr` function runs Make targets from any subdirectory,
+defaulting to the `r` target (which typically enters the Docker
+container). This means you can type `mr` from deep inside
+`analysis/scripts/` and it behaves as if you ran `make r` at the
+project root.
 
 ---
 
-The numbered sections are deliberate. When adding a new alias,
-navigating directly to the aliases section is straightforward.
-When a plugin breaks, the plugin management section is the
-obvious location. This organisational discipline saves time each
-time the file requires editing.
+**Also configured but omitted here for brevity:** platform-specific
+PATH setup via `$OSTYPE` checks, completion system caching,
+plugin loading (autojump, zsh-autosuggestions,
+zsh-syntax-highlighting) with conditional guards, ls/grep colour
+aliases, application shortcuts, directory stack navigation, NVM
+loading, and conda initialisation. These are standard shell
+configuration; the [Zsh documentation](https://zsh.sourceforge.io/Doc/)
+and [Configuring Zsh Without Dependencies](https://thevaluable.dev/zsh-install-configure-mouseless/)
+cover them thoroughly.
 
 ![Git logo](media/images/git-logo.png){.img-fluid width=40%
 fig-align="center"}
