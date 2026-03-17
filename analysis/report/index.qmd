@@ -1,6 +1,6 @@
 ---
 title: "Configure the Command Line for Data Science Development"
-subtitle: "Setting up Kitty terminal, Zsh shell, and
+subtitle: "A opinionated Setting up Kitty terminal, Zsh shell, and
   productivity tools for everyday data science work"
 author: "Ronald G. Thomas"
 date: "2026-02-16"
@@ -21,12 +21,8 @@ format:
     code-tools: false
 ---
 
-![The Kitty terminal emulator logo, a stylized cat face in
-neon colors](media/images/kitty-icon.png){.img-fluid width=50%
+![The Kitty terminal emulator logo](media/images/kitty-icon.png){.img-fluid width=50%
 fig-align="center"}
-
-*The Kitty terminal emulator: a GPU-accelerated terminal built
-for power users. Icon by [DinkDonk](https://github.com/DinkDonk/kitty-icon).*
 
 # Introduction
 
