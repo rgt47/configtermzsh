@@ -1,6 +1,6 @@
 ---
 title: "Configure the Command Line for Data Science Development"
-subtitle: "A opinionated Setting up Kitty terminal, Zsh shell, and
+subtitle: "A opinionated setup for terminal (kitty, ghostty, wezterm), shell (zsh), and
   productivity tools for everyday data science work"
 author: "Ronald G. Thomas"
 date: "2026-02-16"
@@ -39,26 +39,11 @@ This post covers four configuration files that work together:
 - **kitty.conf**: terminal emulator (rendering, keybindings,
   appearance)
 - **.zshrc**: shell (environment, history, aliases, functions)
-- **.gitconfig**: version control (identity, authentication,
-  behaviour)
-- **.inputrc**: readline (vi mode consistency across CLI tools)
 
 ## Motivations
 
 The following pain points motivated this configuration:
 
-- Excessive keystrokes navigating between project directories,
-  with `cd ../../..` chains becoming unwieldy.
-- Default terminal scrollback buffers of 2,000 lines, which
-  causes model training output to be lost before review.
-- Absence of visual indicators for the current git branch,
-  leading to commits on the wrong branch.
-- Plugin installation without a clear cross-platform loading
-  strategy that functions on both macOS and Linux.
-- Aliases accumulating in scattered locations rather than in a
-  single, well-organised configuration file.
-- Lack of inline image support for viewing matplotlib plots
-  directly in the terminal.
 
 ## Objectives
 
@@ -101,16 +86,12 @@ brew install kitty
 ```
 
 **Linux installation:**
+Restrict attention to Ubuntu. 
 
 ```bash
 # Ubuntu/Debian
 sudo apt-get install kitty
 
-# Fedora/RHEL
-sudo dnf install kitty
-
-# Arch Linux
-sudo pacman -S kitty
 ```
 
 Kitty stores its configuration in `~/.config/kitty/kitty.conf`.
@@ -154,75 +135,6 @@ work sessions. Some users prefer `cursor_shape beam` for a thinner
 insertion point, but the block cursor is easier to locate after
 shifting attention away from the screen.
 
-## Scrollback Buffer
-
-```sh
-scrollback_lines 50000
-scrollback_pager less --chop-long-lines --RAW-CONTROL-CHARS +INPUT_LINE_NUMBER
-scrollback_fill_enlarged_window yes
-```
-
-The default scrollback of 2,000 lines is inadequate for data
-science work. Model training runs, database query results, and
-error traces routinely exceed that limit. Increasing this to
-50,000 lines covers most workflows without consuming excessive
-memory.
-
-The `scrollback_pager` setting opens the entire terminal history
-in `less` by pressing `Ctrl+Shift+H`. This proves invaluable when
-searching through long training logs for specific metrics or
-error messages. The `+INPUT_LINE_NUMBER` flag positions the pager
-at the current scroll position rather than the top.
-
-## Performance Tuning
-
-```sh
-repaint_delay 2
-input_delay 0
-sync_to_monitor yes
-```
-
-These settings reduce latency when the terminal is updating
-rapidly. With `input_delay 0`, keystrokes register immediately
-even when a long-running process is flooding the screen with
-output. The `repaint_delay 2` (milliseconds) keeps the display
-smooth when streaming data through command-line tools.
-
-The setting `sync_to_monitor yes` avoids screen tearing. If lag
-appears during intensive output, setting it to `no` can help.
-The trade-off is occasional visual artifacts during rapid
-scrolling.
-
-## Window Layout and Padding
-
-```sh
-initial_window_width  1024
-initial_window_height 768
-window_padding_width 4
-window_margin_width 5
-window_border_width 2pt
-inactive_border_width 1pt
-draw_minimal_borders yes
-```
-
-The initial window size provides a reasonable starting point
-that can be resized as needed. The padding and margin settings
-add breathing room around the terminal content, which reduces
-eye strain during long sessions. Minimal borders keep the
-interface clean when using split panes.
-
-## Tab Bar Appearance
-
-```sh
-tab_bar_edge bottom
-tab_bar_style powerline
-tab_powerline_style slanted
-```
-
-Placing the tab bar at the bottom positions it in the natural
-resting area of the eyes when typing. The powerline style with
-slanted separators provides clear visual distinction between tabs
-without being distracting.
 
 ## Basic Key Bindings
 
@@ -247,20 +159,6 @@ flag ensures the new pane starts in the same directory). The tab
 shortcuts allow jumping directly to a specific tab without
 cycling through them.
 
-## Zoom and Font Size
-
-```sh
-map cmd+plus change_font_size all +2.0
-map cmd+minus change_font_size all -2.0
-map cmd+0 change_font_size all 0
-map ctrl+shift+z toggle_layout stack
-map f11 toggle_layout stack
-```
-
-Quick font resizing is essential when sharing screens or reading
-dense output. The `toggle_layout stack` binding temporarily
-maximises the current pane, which is useful for focusing on one
-window without closing others.
 
 ## Clipboard Integration
 
@@ -312,7 +210,6 @@ comfortable for extended reading without wasting screen space.
 ## Data Science Key Bindings
 
 ```sh
-map ctrl+shift+h show_scrollback
 map ctrl+shift+i kitten icat
 map cmd+shift+d launch --location=hsplit --cwd=current
 map f8 launch --location=vsplit --cwd=current
@@ -322,26 +219,10 @@ map f9 next_layout
 map ctrl+shift+l no_op
 ```
 
-These bindings support data science workflows specifically.
-`Ctrl+Shift+H` opens the scrollback in the pager for searching
-through training logs. `Ctrl+Shift+I` launches `kitten icat` for
+ `Ctrl+Shift+I` launches `kitten icat` for
 viewing images directly in the terminal (useful for quick plot
 inspection). The split bindings (`Cmd+Shift+D` for horizontal,
-`F8` for vertical) enable monitoring a training run in one pane
-while continuing to work in another.
 
-## URL Detection and Notifications
-
-```sh
-detect_urls yes
-enable_audio_bell yes
-```
-
-URL detection makes it easy to open links to documentation,
-datasets, and GitHub repositories by clicking on them. The audio
-bell provides a notification when long-running processes
-complete. Appending `&& echo -e '\a'` to training commands
-provides an audible signal upon completion.
 
 ## macOS-Specific Settings
 
@@ -373,9 +254,7 @@ switching themes easy without editing the main configuration. Run
 ---
 
 The settings that make the largest difference are
-`scrollback_lines 50000` (model training output is no longer
-lost), `input_delay 0` (the terminal feels instant when
-monitoring long-running processes), and `copy_on_select
+ `copy_on_select
 clipboard` (selecting text copies it automatically, which saves
 a surprising number of keystrokes per day).
 
@@ -1199,3 +1078,10 @@ Feedback is welcome for:
 - Alternative terminal setups
 - Questions about adapting this for specific workflows
 - General discussion of command-line tools
+
+# Additional topics
+
+ **.gitconfig**: version control (identity, authentication,
+  behaviour)
+- **.inputrc**: readline (vi mode consistency across CLI tools)
+
