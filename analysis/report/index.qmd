@@ -1136,7 +1136,201 @@ Feedback is welcome for:
 
 # Additional topics
 
- **.gitconfig**: version control (identity, authentication,
+- **.gitconfig**: version control (identity, authentication,
   behaviour)
 - **.inputrc**: readline (vi mode consistency across CLI tools)
+
+# Appendix: The Terminal Stack in Depth
+
+This appendix examines the layers of software between a
+keystroke and its effect on a macOS system. Understanding
+this stack is not required to use the configurations in this
+post, but it clarifies why the terminal emulator, shell, and
+editor are configured separately and what each layer
+contributes.
+
+## The macOS Terminal Stack
+
+When you press a key in Kitty, it does not go directly to
+Zsh. The keystroke passes through several layers, each with
+a distinct responsibility:
+
+1. **Kitty** captures the keystroke from the macOS event
+   system and writes it to the PTY master.
+2. The kernel's **line discipline** receives it and processes
+   it: buffering characters until Enter is pressed, echoing
+   them back to Kitty for display, and converting control
+   sequences like Ctrl+C into signals.
+3. The processed input becomes available on the **PTY slave**,
+   which is the file descriptor Zsh reads from.
+4. **Zsh** parses the command, resolves it against `$PATH`,
+   forks a child process, and execs the program.
+5. The program makes **system calls** into the kernel.
+6. Output flows back through the PTY slave, line discipline,
+   and PTY master to Kitty, which renders it on screen.
+
+The PTY (pseudo-terminal) is a kernel device consisting of
+two endpoints -- master and slave -- connected by the line
+discipline. The terminal emulator holds the master; the shell
+holds the slave. Neither talks to the other directly. The
+line discipline is the active component between them,
+implementing terminal behaviour: line buffering in canonical
+mode, pass-through in raw mode, and signal generation for
+control characters.
+
+The line discipline is asymmetric. On input, it performs
+substantial processing (buffering, echo, signal generation).
+On output, it is nearly transparent, doing little more than
+converting `\n` to `\r\n`.
+
+## Terminal Vim vs MacVim
+
+The difference between a terminal-based editor and a native
+GUI editor illustrates the cost of the terminal abstraction.
+The following diagram shows the layers involved in each case:
+
+```
+  Kitty / Zsh / Vim                    MacVim
+
+┌───────────────────────┐
+│   Vim                 │
+│  writes escape codes  │        ┌───────────────────────┐
+│  to PTY slave         │        │   MacVim              │
+├───────────────────────┤        │  native Cocoa app     │
+│   Shell (Zsh)         │        │  renders directly     │
+│  fork/exec'd Vim      │        │  via AppKit           │
+├───────────────────────┤        └───────────┬───────────┘
+│   PTY + Line          │                    │
+│   Discipline          │                    │
+│  (raw mode: mostly    │                    │
+│   pass-through while  │                    │
+│   Vim is running)     │                    │
+├───────────────────────┤                    │
+│   Terminal Emulator   │                    │
+│  (Kitty)              │                    │
+│  interprets escape    │                    │
+│  codes, renders text  │                    │
+│  using GPU            │                    │
+├───────────────────────┤        ┌───────────┴───────────┐
+│  Quartz Compositor    │        │  Quartz Compositor    │
+│  (WindowServer)       │        │  (WindowServer)       │
+├───────────────────────┤        ├───────────────────────┤
+│  macOS Frameworks     │        │  macOS Frameworks     │
+│  AppKit, Metal,       │        │  AppKit, Metal,       │
+│  Core Text            │        │  Core Text            │
+├───────────────────────┤        ├───────────────────────┤
+│  Darwin               │        │  Darwin               │
+├───────────────────────┤        ├───────────────────────┤
+│  XNU Kernel           │        │  XNU Kernel           │
+├───────────────────────┤        ├───────────────────────┤
+│  Hardware             │        │  Hardware             │
+└───────────────────────┘        └───────────────────────┘
+```
+
+The bottom four layers are identical. The difference is
+everything above.
+
+**MacVim** is a native Cocoa application. It calls AppKit
+directly to create windows, Core Text to render fonts, and
+Metal for GPU acceleration. A keystroke is delivered straight
+from macOS to MacVim. Four layers separate the editor from
+the hardware.
+
+**Terminal Vim** adds four extra layers. Vim cannot draw to
+the screen -- it writes ANSI escape sequences (`\e[1;1H` to
+position the cursor, `\e[32m` for green text) to the PTY
+slave. Kitty reads those from the PTY master, interprets
+them, and renders the result using its own GPU pipeline. A
+single keystroke travels: Kitty -> PTY master -> line
+discipline -> PTY slave -> Vim. Vim's screen update travels
+the reverse path.
+
+When Vim starts, it switches the PTY to **raw mode**. This
+disables line buffering, echo, and signal generation in the
+line discipline. Every keystroke goes straight to Vim without
+waiting for Enter. This is why Ctrl+C in Vim does not kill
+the process -- Vim receives the raw byte and handles it
+internally, rather than the line discipline converting it to
+SIGINT.
+
+**Is MacVim more efficient?** In theory, yes. It skips four
+layers of context switches, memory copies, and escape code
+parsing. In practice, the entire Kitty/PTY/Vim round trip
+takes microseconds -- well below human perception. The
+difference becomes measurable only when scrolling through
+very large files or processing high-frequency screen updates
+(e.g., tailing a build log), where the escape code overhead
+accumulates.
+
+The reason to choose terminal Vim over MacVim is not
+efficiency but workflow integration. Vim inside Kitty shares
+the same PTY environment as the shell: you can suspend Vim
+with Ctrl+Z, run a command, and resume with `fg`. MacVim is
+a separate application with no access to your shell session.
+The extra layers are the cost of that integration.
+
+## The Linux Comparison
+
+On Linux, the stack is more modular. Every layer above the
+kernel is optional and replaceable, and you can bypass the
+GUI entirely:
+
+```
+  GUI terminal                   Virtual console
+                                 (Ctrl+Alt+F2)
+
+┌────────────────────────┐
+│   Terminal Emulator    │
+│  (Kitty, Alacritty)   │
+├────────────────────────┤
+│   Display Server       │
+│  (X11 or Wayland)      │
+├────────────────────────┤  ┌────────────────────────┐
+│   PTY + Line           │  │   TTY + Line           │
+│   Discipline           │  │   Discipline           │
+│                        │  │  /dev/tty1 - tty6      │
+│                        │  │  kernel framebuffer     │
+├────────────────────────┤  ├────────────────────────┤
+│   Shell                │  │   Shell                │
+├────────────────────────┤  ├────────────────────────┤
+│   GNU Utilities        │  │   GNU Utilities        │
+├────────────────────────┤  ├────────────────────────┤
+│   System Calls         │  │   System Calls         │
+├────────────────────────┤  ├────────────────────────┤
+│   Linux Kernel         │  │   Linux Kernel         │
+├────────────────────────┤  ├────────────────────────┤
+│   Hardware             │  │   Hardware             │
+└────────────────────────┘  └────────────────────────┘
+```
+
+The right column is a virtual console -- accessed with
+Ctrl+Alt+F2. No display server, no terminal emulator, no
+PTY. The kernel drives the display directly through its
+**framebuffer**: a block of memory where each pixel on the
+screen corresponds to a memory location. The kernel writes
+characters to the framebuffer using a built-in bitmap font.
+This is why virtual console text looks crude compared to a
+terminal emulator -- there is no font rendering library, no
+antialiasing, no ligatures.
+
+Virtual consoles use real TTY devices (`/dev/tty1`) rather
+than pseudo-terminals. The line discipline works identically,
+but there is no master/slave pair. The kernel reads directly
+from the keyboard driver and writes directly to the
+framebuffer.
+
+On macOS, this option does not exist. Quartz Compositor is
+integrated into the boot process and cannot be bypassed. Even
+a full-screen terminal is still a window composited by
+WindowServer. The closest equivalents are Recovery Mode (a
+minimal environment) and SSH (which bypasses the display
+stack entirely by sending text over a network socket).
+
+The thinnest possible stack is a **serial console**: a shell
+connected to a serial port with no display at all. The kernel
+sends raw ASCII bytes out a wire, and the receiving end
+renders them however it chooses. No framebuffer, no GPU, no
+font rendering. This is how headless servers, embedded
+systems, and the original Unix teletypewriters -- the
+original TTY -- operated.
 
