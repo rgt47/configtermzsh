@@ -34,6 +34,61 @@ structural decisions (how to organise configuration files, which
 settings provide measurable benefit, and how to maintain
 portability) should transfer to other contexts.
 
+Before diving into specific files, it helps to see where each
+piece sits in the stack. When you type a command on macOS, the
+keystroke passes through several layers of software before
+anything happens. The terminal emulator is just one layer -- it
+draws the window, renders text using the GPU, and forwards input
+downward through a kernel pseudo-terminal device to the shell.
+The shell interprets the command and calls programs, which in
+turn make POSIX system calls into the XNU kernel.
+Understanding this stack clarifies why configuring the terminal
+emulator and the shell separately makes sense: each layer has
+a distinct responsibility, and mixing concerns across layers
+creates fragile setups.
+
+```
+┌─────────────────────────────────────────────┐
+│            Terminal Emulator                 │
+│       (Kitty, Ghostty, WezTerm)             │
+│  rendering, input, fonts, GPU acceleration  │
+├─────────────────────────────────────────────┤
+│     Window Manager (Quartz Compositor)      │
+│  window compositing, Spaces, display        │
+│  routing (the WindowServer process)         │
+├─────────────────────────────────────────────┤
+│         PTY (pseudo-terminal)               │
+│  kernel device pairing the terminal to      │
+│  the shell process (/dev/ttys*)             │
+├─────────────────────────────────────────────┤
+│              Shell (Zsh)                    │
+│  command interpretation, history,           │
+│  scripting, job control                     │
+├─────────────────────────────────────────────┤
+│         System Calls (POSIX)                │
+│  open, read, write, fork, exec, ioctl      │
+├─────────────────────────────────────────────┤
+│          macOS Frameworks                   │
+│  AppKit (windows), Metal (GPU rendering),   │
+│  Core Text (fonts), IOKit (devices)         │
+├─────────────────────────────────────────────┤
+│              Darwin                         │
+│  BSD userland, system libraries,            │
+│  POSIX-compliant OS layer                   │
+├─────────────────────────────────────────────┤
+│        XNU Kernel (Mach + BSD)              │
+│  process scheduling, memory, filesystem,    │
+│  networking, device drivers                 │
+├─────────────────────────────────────────────┤
+│       Hardware (Apple Silicon)              │
+│  CPU, GPU, display, keyboard, storage       │
+└─────────────────────────────────────────────┘
+```
+
+This post focuses on the top two configurable layers:
+`kitty.conf` controls the terminal emulator and `.zshrc`
+controls the shell.
+
 This post covers four configuration files that work together:
 
 - **kitty.conf**: terminal emulator (rendering, keybindings,
