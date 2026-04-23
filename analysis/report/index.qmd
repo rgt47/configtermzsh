@@ -8,7 +8,7 @@ categories: [terminal, zsh, macos, configuration, git, neovim]
 description: "A systematic approach to configuring command-line
   tools for data science workflows, covering terminal emulation,
   shell configuration, version control, and readline settings."
-image: "media/images/kitty-icon.png"
+image: "media/images/hero.jpg"
 document-type: "blog"
 draft: false
 execute:
@@ -21,8 +21,7 @@ format:
     code-tools: false
 ---
 
-![The Kitty terminal emulator logo](media/images/kitty-icon.png){.img-fluid width=50%
-fig-align="center"}
+![A terminal screen reflected on a polished desk.](media/images/hero.jpg){.img-fluid width=80%}
 
 # Introduction
 
@@ -638,8 +637,7 @@ configuration; the [Zsh documentation](https://zsh.sourceforge.io/Doc/)
 and [Configuring Zsh Without Dependencies](https://thevaluable.dev/zsh-install-configure-mouseless/)
 cover them thoroughly.
 
-![Git logo](media/images/git-logo.png){.img-fluid width=40%
-fig-align="center"}
+![Version control configuration.](media/images/placeholder-coffee-02.jpg){.img-fluid}
 
 ## Git Configuration
 
@@ -745,8 +743,7 @@ The `lg` alias provides a compact visual history. The
 when refactoring). The `diff3` conflict style shows the common
 ancestor in merge conflicts, making resolution easier.
 
-![Vim logo](media/images/vim.png){.img-fluid width=30%
-fig-align="center"}
+![Line editing and modal input.](media/images/placeholder-coffee-04.jpg){.img-fluid}
 
 ## Readline Configuration
 
@@ -838,6 +835,21 @@ proceeds as follows:
 The individual pieces (cdpath, autojump, fzf functions, the git
 workflow) each save a few seconds. Over hundreds of commands per
 day, the cumulative effect is significant.
+
+## Daily Workflow Quick Reference
+
+| Command / Alias | Action |
+|-----------------|--------|
+| `prj` | Jump to `~/Dropbox/prj` via cdpath |
+| `j <partial>` | Autojump to most-visited matching directory |
+| `0` | Jump to project root (git top-level) |
+| `s` / `d` / `f` | Navigate to `scripts/` / `data/` / `figures/` |
+| `rr` | Fuzzy-find and open an R file in vim |
+| `pp` | Fuzzy-find and open a PDF |
+| `gz` | Stage, commit, and push in one command |
+| `ga` / `gs` / `gd` | Git add / status / diff aliases |
+| `Ctrl-T` | Fzf file search in current directory |
+| `Ctrl-R` | Fzf reverse history search |
 
 # Checking Our Work: Verifying the Configuration
 
@@ -941,15 +953,42 @@ shell.
    prompt icons render as boxes, run `fc-list | grep -i fira` to
    verify the font is visible to fontconfig.
 
+# Uninstall / Rollback
+
+To revert to default terminal and shell configuration:
+
+```bash
+# 1. Restore default shell prompt (remove custom PROMPT lines)
+cp ~/.zshrc ~/.zshrc.backup
+grep -v 'PROMPT=' ~/.zshrc > ~/.zshrc.tmp && mv ~/.zshrc.tmp ~/.zshrc
+
+# 2. Remove Kitty configuration
+rm -i ~/.config/kitty/kitty.conf
+
+# 3. Remove readline customisation
+rm -i ~/.inputrc
+
+# 4. Uninstall Kitty (if switching terminals)
+brew uninstall kitty         # macOS
+sudo apt remove kitty        # Ubuntu / Debian
+
+# 5. Remove plugins (optional)
+brew uninstall autojump fzf  # macOS
+```
+
+The original `.zshrc.backup` allows full recovery if anything goes wrong.
+
 ![A lofi aesthetic workspace with warm lighting and a laptop
 screen](media/images/ambiance3.jpg){.img-fluid}
 
 *The calm focus of a well-tuned workspace: what a thoughtfully
 configured terminal makes possible.*
 
+# What Did We Learn?
+
 ## Lessons Learnt
 
-### Conceptual Understanding
+**Conceptual Understanding:**
 
 - A terminal configuration is a layered system: the emulator
   (Kitty) handles rendering and input; the shell (Zsh) handles
@@ -964,7 +1003,7 @@ configured terminal makes possible.*
 - The prompt is an information display, not decoration. Showing
   git branch and exit status prevents real errors.
 
-### Technical Skills
+**Technical Skills:**
 
 - Using `vcs_info` for lightweight git integration in the prompt
   avoids the overhead of Oh My Zsh.
@@ -976,7 +1015,7 @@ configured terminal makes possible.*
   scripting terminal layouts, useful when setting up experiment
   monitoring.
 
-### Gotchas and Pitfalls
+**Gotchas and Pitfalls:**
 
 - Overriding `rm` with a safety alias means scripts that call
   `rm` will also fail. Use `command rm` or `/bin/rm` in scripts
@@ -1124,213 +1163,19 @@ fzf --version
 rg --version
 ```
 
-# Feedback
+# Let's Connect
 
-Feedback is welcome for:
+*Have questions, suggestions, or spot an error? Let me know.*
 
-- Errors or corrections
-- Better approaches to any of these configurations
-- Alternative terminal setups
-- Questions about adapting this for specific workflows
-- General discussion of command-line tools
+- **GitHub:** [rgt47](https://github.com/rgt47)
+- **Twitter/X:** [@rgt47](https://twitter.com/rgt47)
+- **LinkedIn:** [Ronald Glenn Thomas](https://linkedin.com/in/rgthomaslab)
+- **Email:** [Contact form](https://rgtlab.org/contact)
 
-# Additional topics
+I would enjoy hearing from you if:
 
-- **.gitconfig**: version control (identity, authentication,
-  behaviour)
-- **.inputrc**: readline (vi mode consistency across CLI tools)
-
-# Appendix: The Terminal Stack in Depth
-
-This appendix examines the layers of software between a
-keystroke and its effect on a macOS system. Understanding
-this stack is not required to use the configurations in this
-post, but it clarifies why the terminal emulator, shell, and
-editor are configured separately and what each layer
-contributes.
-
-## The macOS Terminal Stack
-
-When you press a key in Kitty, it does not go directly to
-Zsh. The keystroke passes through several layers, each with
-a distinct responsibility:
-
-1. **Kitty** captures the keystroke from the macOS event
-   system and writes it to the PTY master.
-2. The kernel's **line discipline** receives it and processes
-   it: buffering characters until Enter is pressed, echoing
-   them back to Kitty for display, and converting control
-   sequences like Ctrl+C into signals.
-3. The processed input becomes available on the **PTY slave**,
-   which is the file descriptor Zsh reads from.
-4. **Zsh** parses the command, resolves it against `$PATH`,
-   forks a child process, and execs the program.
-5. The program makes **system calls** into the kernel.
-6. Output flows back through the PTY slave, line discipline,
-   and PTY master to Kitty, which renders it on screen.
-
-The PTY (pseudo-terminal) is a kernel device consisting of
-two endpoints -- master and slave -- connected by the line
-discipline. The terminal emulator holds the master; the shell
-holds the slave. Neither talks to the other directly. The
-line discipline is the active component between them,
-implementing terminal behaviour: line buffering in canonical
-mode, pass-through in raw mode, and signal generation for
-control characters.
-
-The line discipline is asymmetric. On input, it performs
-substantial processing (buffering, echo, signal generation).
-On output, it is nearly transparent, doing little more than
-converting `\n` to `\r\n`.
-
-## Terminal Vim vs MacVim
-
-The difference between a terminal-based editor and a native
-GUI editor illustrates the cost of the terminal abstraction.
-The following diagram shows the layers involved in each case:
-
-```
-  Kitty / Zsh / Vim                    MacVim
-
-┌───────────────────────┐
-│   Vim                 │
-│  writes escape codes  │        ┌───────────────────────┐
-│  to PTY slave         │        │   MacVim              │
-├───────────────────────┤        │  native Cocoa app     │
-│   Shell (Zsh)         │        │  renders directly     │
-│  fork/exec'd Vim      │        │  via AppKit           │
-├───────────────────────┤        └───────────┬───────────┘
-│   PTY + Line          │                    │
-│   Discipline          │                    │
-│  (raw mode: mostly    │                    │
-│   pass-through while  │                    │
-│   Vim is running)     │                    │
-├───────────────────────┤                    │
-│   Terminal Emulator   │                    │
-│  (Kitty)              │                    │
-│  interprets escape    │                    │
-│  codes, renders text  │                    │
-│  using GPU            │                    │
-├───────────────────────┤        ┌───────────┴───────────┐
-│  Quartz Compositor    │        │  Quartz Compositor    │
-│  (WindowServer)       │        │  (WindowServer)       │
-├───────────────────────┤        ├───────────────────────┤
-│  macOS Frameworks     │        │  macOS Frameworks     │
-│  AppKit, Metal,       │        │  AppKit, Metal,       │
-│  Core Text            │        │  Core Text            │
-├───────────────────────┤        ├───────────────────────┤
-│  Darwin               │        │  Darwin               │
-├───────────────────────┤        ├───────────────────────┤
-│  XNU Kernel           │        │  XNU Kernel           │
-├───────────────────────┤        ├───────────────────────┤
-│  Hardware             │        │  Hardware             │
-└───────────────────────┘        └───────────────────────┘
-```
-
-The bottom four layers are identical. The difference is
-everything above.
-
-**MacVim** is a native Cocoa application. It calls AppKit
-directly to create windows, Core Text to render fonts, and
-Metal for GPU acceleration. A keystroke is delivered straight
-from macOS to MacVim. Four layers separate the editor from
-the hardware.
-
-**Terminal Vim** adds four extra layers. Vim cannot draw to
-the screen -- it writes ANSI escape sequences (`\e[1;1H` to
-position the cursor, `\e[32m` for green text) to the PTY
-slave. Kitty reads those from the PTY master, interprets
-them, and renders the result using its own GPU pipeline. A
-single keystroke travels: Kitty -> PTY master -> line
-discipline -> PTY slave -> Vim. Vim's screen update travels
-the reverse path.
-
-When Vim starts, it switches the PTY to **raw mode**. This
-disables line buffering, echo, and signal generation in the
-line discipline. Every keystroke goes straight to Vim without
-waiting for Enter. This is why Ctrl+C in Vim does not kill
-the process -- Vim receives the raw byte and handles it
-internally, rather than the line discipline converting it to
-SIGINT.
-
-**Is MacVim more efficient?** In theory, yes. It skips four
-layers of context switches, memory copies, and escape code
-parsing. In practice, the entire Kitty/PTY/Vim round trip
-takes microseconds -- well below human perception. The
-difference becomes measurable only when scrolling through
-very large files or processing high-frequency screen updates
-(e.g., tailing a build log), where the escape code overhead
-accumulates.
-
-The reason to choose terminal Vim over MacVim is not
-efficiency but workflow integration. Vim inside Kitty shares
-the same PTY environment as the shell: you can suspend Vim
-with Ctrl+Z, run a command, and resume with `fg`. MacVim is
-a separate application with no access to your shell session.
-The extra layers are the cost of that integration.
-
-## The Linux Comparison
-
-On Linux, the stack is more modular. Every layer above the
-kernel is optional and replaceable, and you can bypass the
-GUI entirely:
-
-```
-  GUI terminal                   Virtual console
-                                 (Ctrl+Alt+F2)
-
-┌────────────────────────┐
-│   Terminal Emulator    │
-│  (Kitty, Alacritty)   │
-├────────────────────────┤
-│   Display Server       │
-│  (X11 or Wayland)      │
-├────────────────────────┤  ┌────────────────────────┐
-│   PTY + Line           │  │   TTY + Line           │
-│   Discipline           │  │   Discipline           │
-│                        │  │  /dev/tty1 - tty6      │
-│                        │  │  kernel framebuffer     │
-├────────────────────────┤  ├────────────────────────┤
-│   Shell                │  │   Shell                │
-├────────────────────────┤  ├────────────────────────┤
-│   GNU Utilities        │  │   GNU Utilities        │
-├────────────────────────┤  ├────────────────────────┤
-│   System Calls         │  │   System Calls         │
-├────────────────────────┤  ├────────────────────────┤
-│   Linux Kernel         │  │   Linux Kernel         │
-├────────────────────────┤  ├────────────────────────┤
-│   Hardware             │  │   Hardware             │
-└────────────────────────┘  └────────────────────────┘
-```
-
-The right column is a virtual console -- accessed with
-Ctrl+Alt+F2. No display server, no terminal emulator, no
-PTY. The kernel drives the display directly through its
-**framebuffer**: a block of memory where each pixel on the
-screen corresponds to a memory location. The kernel writes
-characters to the framebuffer using a built-in bitmap font.
-This is why virtual console text looks crude compared to a
-terminal emulator -- there is no font rendering library, no
-antialiasing, no ligatures.
-
-Virtual consoles use real TTY devices (`/dev/tty1`) rather
-than pseudo-terminals. The line discipline works identically,
-but there is no master/slave pair. The kernel reads directly
-from the keyboard driver and writes directly to the
-framebuffer.
-
-On macOS, this option does not exist. Quartz Compositor is
-integrated into the boot process and cannot be bypassed. Even
-a full-screen terminal is still a window composited by
-WindowServer. The closest equivalents are Recovery Mode (a
-minimal environment) and SSH (which bypasses the display
-stack entirely by sending text over a network socket).
-
-The thinnest possible stack is a **serial console**: a shell
-connected to a serial port with no display at all. The kernel
-sends raw ASCII bytes out a wire, and the receiving end
-renders them however it chooses. No framebuffer, no GPU, no
-font rendering. This is how headless servers, embedded
-systems, and the original Unix teletypewriters -- the
-original TTY -- operated.
-
+- You spot an error or a better approach to any of the code in this post.
+- You have suggestions for topics you would like to see covered.
+- You want to discuss R programming, data science, or reproducible research.
+- You have questions about anything in this tutorial.
+- You just want to say hello and connect.
