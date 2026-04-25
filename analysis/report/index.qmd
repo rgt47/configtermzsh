@@ -2,7 +2,7 @@
 title: "Configure the Command Line for Data Science Development"
 subtitle: "A opinionated setup for terminal (kitty, ghostty, wezterm), shell (zsh), and
   productivity tools for everyday data science work"
-author: "Ronald G. Thomas"
+author: "Ronald 'Ryy' G. Thomas"
 date: "2026-02-16"
 categories: [terminal, zsh, macos, configuration, git, neovim]
 description: "A systematic approach to configuring command-line
