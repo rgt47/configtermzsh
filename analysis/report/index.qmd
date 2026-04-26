@@ -4,7 +4,7 @@ subtitle: "A opinionated setup for terminal (kitty, ghostty, wezterm), shell (zs
   productivity tools for everyday data science work"
 author: "Ronald 'Ryy' G. Thomas"
 date: "2026-02-16"
-categories: [terminal, zsh, macos, configuration, git, neovim]
+categories: [shell, macos, git, neovim]
 description: "A systematic approach to configuring command-line
   tools for data science workflows, covering terminal emulation,
   shell configuration, version control, and readline settings."
