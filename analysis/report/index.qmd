@@ -94,6 +94,16 @@ This post covers four configuration files that work together:
   appearance)
 - **.zshrc**: shell (environment, history, aliases, functions)
 
+More formally, this post documents the Shell layer (Layer 4) of
+the Workflow Construct described in
+[post 52](/posts/52-workflow-construct/). zsh is the choice of
+shell at this layer; the layer's tool is replaceable (with
+bash, fish, or nushell), but the layer itself, the contract
+between the user's keystrokes and every script and command
+they run, is not. The configuration files documented here are
+the operative artefacts that instantiate the Shell layer on a
+given machine.
+
 ## Motivations
 
 The following pain points motivated this configuration:
