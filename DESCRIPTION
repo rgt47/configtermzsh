@@ -1,0 +1,13 @@
+Package: configtermzsh
+Title: Configure the Command Line for Data Science Development
+Version: 0.0.0.9000
+Authors@R:
+    person("Ronald G. Thomas", email = "rgt@ucsd.edu", role = c("aut", "cre"))
+Description: Blog post on configuring Kitty terminal, Zsh shell, Git,
+    and Readline for data science workflows.
+License: GPL-3
+Encoding: UTF-8
+Imports:
+    renv,
+    knitr,
+    rmarkdown
