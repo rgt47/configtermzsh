@@ -647,7 +647,7 @@ configuration; the [Zsh documentation](https://zsh.sourceforge.io/Doc/)
 and [Configuring Zsh Without Dependencies](https://thevaluable.dev/zsh-install-configure-mouseless/)
 cover them thoroughly.
 
-![Version control configuration.](media/images/placeholder-coffee-02.jpg){.img-fluid}
+![Version control configuration.](media/images/ambiance1.png){.img-fluid}
 
 ## Git Configuration
 
@@ -753,7 +753,7 @@ The `lg` alias provides a compact visual history. The
 when refactoring). The `diff3` conflict style shows the common
 ancestor in merge conflicts, making resolution easier.
 
-![Line editing and modal input.](media/images/placeholder-coffee-04.jpg){.img-fluid}
+![Line editing and modal input.](media/images/ambiance1.png){.img-fluid}
 
 ## Readline Configuration
 
