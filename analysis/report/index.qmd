@@ -46,43 +46,31 @@ emulator and the shell separately makes sense: each layer has
 a distinct responsibility, and mixing concerns across layers
 creates fragile setups.
 
-```
-┌─────────────────────────────────────────────┐
-│            Terminal Emulator                 │
-│       (Kitty, Ghostty, WezTerm)             │
-│  rendering, input, fonts, GPU acceleration  │
-├─────────────────────────────────────────────┤
-│     Window Manager (Quartz Compositor)      │
-│  window compositing, Spaces, display        │
-│  routing (the WindowServer process)         │
-├─────────────────────────────────────────────┤
-│         PTY (pseudo-terminal)               │
-│  kernel device pairing the terminal to      │
-│  the shell process (/dev/ttys*)             │
-├─────────────────────────────────────────────┤
-│              Shell (Zsh)                    │
-│  command interpretation, history,           │
-│  scripting, job control                     │
-├─────────────────────────────────────────────┤
-│         System Calls (POSIX)                │
-│  open, read, write, fork, exec, ioctl      │
-├─────────────────────────────────────────────┤
-│          macOS Frameworks                   │
-│  AppKit (windows), Metal (GPU rendering),   │
-│  Core Text (fonts), IOKit (devices)         │
-├─────────────────────────────────────────────┤
-│              Darwin                         │
-│  BSD userland, system libraries,            │
-│  POSIX-compliant OS layer                   │
-├─────────────────────────────────────────────┤
-│        XNU Kernel (Mach + BSD)              │
-│  process scheduling, memory, filesystem,    │
-│  networking, device drivers                 │
-├─────────────────────────────────────────────┤
-│       Hardware (Apple Silicon)              │
-│  CPU, GPU, display, keyboard, storage       │
-└─────────────────────────────────────────────┘
-```
+| # | Layer              | Component(s)                    | Responsibility                                              | Configurable via   |
+|--:|--------------------|---------------------------------|-------------------------------------------------------------|--------------------|
+| 1 | Terminal emulator  | Kitty, Ghostty, WezTerm         | Window drawing, input capture, font shaping, GPU rendering  | `kitty.conf`       |
+| 2 | Window manager     | Quartz Compositor (WindowServer)| Window compositing, Spaces, multi-display routing           | macOS Settings     |
+| 3 | PTY                | `/dev/ttys*` kernel device      | Bidirectional pipe pairing the emulator to the shell        | not user-tunable   |
+| 4 | Shell              | Zsh                             | Command parsing, history, completion, scripting, job control| `.zshrc`, `.zshenv`|
+| 5 | System calls       | POSIX (`open`, `read`, `fork`, `exec`, `ioctl`) | Kernel API surface invoked by every program | not user-tunable   |
+| 6 | OS frameworks      | AppKit, Metal, Core Text, IOKit | Windowing, GPU pipelines, font resolution, device access    | not user-tunable   |
+| 7 | Userland           | Darwin (BSD libraries)          | POSIX-compliant C library and command set                   | not user-tunable   |
+| 8 | Kernel             | XNU (Mach + BSD)                | Process scheduling, memory, filesystem, networking, drivers | not user-tunable   |
+| 9 | Hardware           | Apple Silicon                   | CPU, GPU, display panel, keyboard, storage                  | not user-tunable   |
+
+: The macOS terminal stack, ordered from user-facing
+(layer 1) to hardware (layer 9). A single keystroke originates
+at the emulator, descends through the PTY (layer 3) into the
+shell (layer 4), which translates the parsed command into POSIX
+system calls (layer 5) that the kernel (layer 8) executes
+against hardware (layer 9). Output flows back along the same
+path. Only layers 1, 2, and 4 are routinely user-configurable;
+this post addresses layers 1 (`kitty.conf`) and 4 (`.zshrc`,
+`.zshenv`). The intermediate layers are listed for completeness
+and because debugging shell behaviour occasionally requires
+reasoning about them, for example a hung PTY that survives the
+emulator quitting, or a Nerd Font that fontconfig sees but Core
+Text cannot resolve. {#tbl-terminal-stack}
 
 This post focuses on the top two configurable layers:
 `kitty.conf` controls the terminal emulator and `.zshrc`
@@ -368,6 +356,19 @@ API keys, database credentials, and tokens belong in a separate
 `~/.env` file that is never version-controlled. This one-liner
 sources it when present and silently skips it otherwise.
 
+A caveat: sourcing `~/.env` exports every credential into the
+environment of every child process, which is the simplest
+arrangement but the loosest. A safer pattern is per-process
+injection via a `with-secret` wrapper backed by `pass` (the
+Unix password store), which decrypts a credential only at the
+moment a specific command needs it and leaves the surrounding
+environment clean. The `~/.env` approach above is fine for solo
+research projects on a trusted machine; for anything more
+exposed, see [post 55](/posts/55-secrets-management/) for the
+full three-tier scheme (`pass` for API keys, AWS IAM Identity
+Center for AWS credentials, `gitleaks` at staging as a residual
+safety net).
+
 `DOCKER_BUILDKIT=1` enables Docker's improved build engine,
 which provides better layer caching and parallel stage execution.
 For research compendia that build inside Docker, this can cut
@@ -379,22 +380,86 @@ duplicating it into each project.
 ### Project Navigation with cdpath
 
 ```sh
-cdpath=($HOME/Dropbox $HOME/Dropbox/prj
-        $HOME/Dropbox/sbx $HOME/Dropbox/work)
+: ${PRJ_ROOT:=$HOME/Dropbox/prj}
+cdpath=($PRJ_ROOT $PRJ_ROOT/.. $PRJ_ROOT/../sbx $PRJ_ROOT/../work)
 ```
 
 `cdpath` is one of Zsh's most underrated features for anyone
 who maintains many project directories. With this setting,
 typing `cd myproject` from any location causes Zsh to search
-`~/Dropbox/prj/myproject` automatically. Combined with
-`setopt auto_cd` (which permits typing a directory name without
-`cd`), navigating between analysis projects becomes a single
-word rather than a full path.
+`$PRJ_ROOT/myproject` automatically. Combined with `setopt
+auto_cd` (which permits typing a directory name without `cd`),
+navigating between analysis projects becomes a single word
+rather than a full path.
 
-The trade-off is name collisions: if two directories in `cdpath`
-contain subdirectories with the same name, Zsh picks the first
-match. Keeping project names unique across the listed directories
-avoids surprises.
+The `$PRJ_ROOT` indirection is deliberate. Hardcoding
+`~/Dropbox/prj` in `cdpath` (and in every backup script and
+shell function that follows) makes the workflow load-bearing
+on Dropbox, which is increasingly the wrong default. Setting
+`PRJ_ROOT` once in `~/.zshenv` lets the same configuration
+follow the project tree to a non-cloud location with a
+single-line edit. See [post 64](/posts/64-migrating-off-dropbox/)
+for the full migration argument and a worksheet for moving off
+Dropbox without breaking a running pipeline.
+
+The trade-off with `cdpath` is name collisions: if two
+directories contain subdirectories with the same name, Zsh
+picks the first match. Keeping project names unique across the
+listed directories avoids surprises.
+
+### Modern CLI Replacements
+
+Several Rust-implemented utilities have superseded the GNU/BSD
+core tools that ship with macOS and Linux. They render faster,
+respect `.gitignore` by default, produce coloured output
+suitable for interactive use, and integrate with `fzf` more
+cleanly than their predecessors. The block below wires the
+common set into Zsh:
+
+```sh
+# zoxide: cd with a frequency table; '--cmd j' aliases the
+# jump command to 'j' so existing autojump muscle memory carries
+# over.
+if command -v zoxide > /dev/null 2>&1; then
+  eval "$(zoxide init zsh --cmd j)"
+fi
+
+# eza: ls replacement with git awareness and tree mode
+if command -v eza > /dev/null 2>&1; then
+  alias ls='eza --group-directories-first'
+  alias ll='eza -l --git --group-directories-first'
+  alias la='eza -la --git --group-directories-first'
+  alias lt='eza --tree --level=2 --git-ignore'
+fi
+
+# bat: cat with syntax highlighting; alias only for interactive
+# use so that scripts calling 'cat' continue to see plain output.
+if command -v bat > /dev/null 2>&1; then
+  alias cat='bat --paging=never --style=plain'
+fi
+
+# delta: side-by-side pager for git diff
+if command -v delta > /dev/null 2>&1; then
+  export GIT_PAGER='delta'
+fi
+
+# lazygit: full-screen TUI for git; not aliased to 'git' so the
+# plain command stays available.
+if command -v lazygit > /dev/null 2>&1; then
+  alias lg='lazygit'
+fi
+```
+
+Two notes on the migration. First, `zoxide` supersedes
+`autojump`: it maintains its own frequency database and is
+faster on large histories. Bind it to `j` (as above) and the
+existing muscle memory carries over; the autojump database can
+optionally be seeded into zoxide with a one-time `awk + xargs`
+script. Second, `delta` requires a corresponding `[core] pager
+= delta` entry in `~/.gitconfig` (covered in the Git section
+below). The full reference, including the autojump-to-zoxide
+migration script and per-tool failure modes, is in
+[post 53](/posts/53-modern-cli-replacements/).
 
 ### History for Long-Running Jobs
 
@@ -573,6 +638,15 @@ immediately), which suits solo research projects where the
 priority is keeping the remote in sync. For collaborative work
 with pull requests, the auto-push behaviour would need removal.
 
+`gz` is the minimal version of this idea. A more complete
+implementation lives in
+[post 49](/posts/49-zzgit/) as `zzgit`, which adds
+`gitleaks`-based secret scanning at staging time, a richer
+fzf-driven hunk picker, and an undo path for the inevitable
+mis-staged file. Readers who plan to commit anything that ever
+touches an API key should treat `gz` as a starting point and
+graduate to `zzgit`.
+
 ![UCSD Geisel Library at dusk](media/images/ucsd-geisel-library.jpg){.img-fluid}
 
 *Configuration as architecture, with each layer built
@@ -639,11 +713,12 @@ project root.
 
 **Also configured but omitted here for brevity:** platform-specific
 PATH setup via `$OSTYPE` checks, completion system caching,
-plugin loading (autojump, zsh-autosuggestions,
-zsh-syntax-highlighting) with conditional guards, ls/grep colour
-aliases, application shortcuts, directory stack navigation, NVM
-loading, and conda initialisation. These are standard shell
-configuration; the [Zsh documentation](https://zsh.sourceforge.io/Doc/)
+plugin loading (`zsh-autosuggestions`,
+`zsh-syntax-highlighting`) with conditional guards, ls/grep
+colour aliases, application shortcuts, directory stack
+navigation, NVM loading, and conda initialisation. These are
+standard shell configuration; the
+[Zsh documentation](https://zsh.sourceforge.io/Doc/)
 and [Configuring Zsh Without Dependencies](https://thevaluable.dev/zsh-install-configure-mouseless/)
 cover them thoroughly.
 
@@ -832,9 +907,9 @@ With the configuration in place, a typical work session
 proceeds as follows:
 
 1. Open Kitty and type `prj` (thanks to `cdpath`, this expands
-   to `~/Dropbox/prj`)
-2. Type `j analysis` and autojump navigates to the most recent
-   analysis project
+   to `$PRJ_ROOT`)
+2. Type `j analysis` and zoxide jumps to the most-frequented
+   directory matching `analysis`
 3. Type `0` to jump to the project root, then `s` for scripts
 4. Type `rr`, fzf displays all R files, select one and it opens
    in vim
@@ -842,7 +917,7 @@ proceeds as follows:
    message, and push
 6. To check a plot, `pp` finds and opens the PDF
 
-The individual pieces (cdpath, autojump, fzf functions, the git
+The individual pieces (cdpath, zoxide, fzf functions, the git
 workflow) each save a few seconds. Over hundreds of commands per
 day, the cumulative effect is significant.
 
@@ -850,8 +925,10 @@ day, the cumulative effect is significant.
 
 | Command / Alias | Action |
 |-----------------|--------|
-| `prj` | Jump to `~/Dropbox/prj` via cdpath |
-| `j <partial>` | Autojump to most-visited matching directory |
+| `prj` | Jump to `$PRJ_ROOT` via cdpath |
+| `j <partial>` | Zoxide jump to most-frequented matching directory |
+| `ll` / `la` / `lt` | eza listings (long, all, tree) |
+| `lg` | Open lazygit TUI in current repo |
 | `0` | Jump to project root (git top-level) |
 | `s` / `d` / `f` | Navigate to `scripts/` / `data/` / `figures/` |
 | `rr` | Fuzzy-find and open an R file in vim |
@@ -882,10 +959,11 @@ working.
 ```bash
 zsh --version
 echo $SHELL
-which autojump 2>/dev/null && echo "autojump: loaded" \
-  || echo "autojump: not found"
-type fzf 2>/dev/null && echo "fzf: loaded" \
-  || echo "fzf: not found"
+for t in zoxide eza bat fd rg fzf delta lazygit; do
+  command -v "$t" > /dev/null \
+    && echo "$t: $(command -v "$t")" \
+    || echo "$t: not found"
+done
 ```
 
 **Verify the prompt shows git information:**
@@ -943,9 +1021,9 @@ shell.
    into one file avoids this.
 
 2. **Plugin startup cost.** Loading `zsh-syntax-highlighting`,
-   `zsh-autosuggestions`, and `autojump` adds roughly 100-200ms
-   to shell startup. If lag appears when opening new terminals,
-   profile with `zsh -xv` and consider lazy-loading.
+   `zsh-autosuggestions`, and `zoxide init` adds roughly
+   100-200ms to shell startup. If lag appears when opening new
+   terminals, profile with `zsh -xv` and consider lazy-loading.
 
 3. **`cdpath` collisions.** If two directories in `cdpath`
    contain subdirectories with the same name, Zsh picks the
@@ -962,6 +1040,20 @@ shell.
    installed system-wide on Linux for Kitty to find it. If
    prompt icons render as boxes, run `fc-list | grep -i fira` to
    verify the font is visible to fontconfig.
+
+6. **`fd` hides hidden files by default.** Unlike `find`, which
+   walks dotfiles unless told otherwise, `fd` skips hidden files
+   and `.gitignore`d paths by default. Add `-H` to include
+   hidden files and `-I` to ignore `.gitignore`. The defaults
+   are usually what you want interactively, but a `fd
+   .credentials` that returns nothing is a common surprise.
+
+7. **Debian package names for the modern CLI tools.** On Ubuntu
+   and Debian, `fd` is packaged as `fd-find` and `bat` as
+   `batcat` to avoid conflicts with older binaries. Either
+   create personal symlinks (`ln -sf "$(command -v fdfind)"
+   ~/.local/bin/fd`) or alias them in `.zshrc`. Without this
+   step, the aliases above silently fail.
 
 # Uninstall / Rollback
 
@@ -983,7 +1075,7 @@ brew uninstall kitty         # macOS
 sudo apt remove kitty        # Ubuntu / Debian
 
 # 5. Remove plugins (optional)
-brew uninstall autojump fzf  # macOS
+brew uninstall zoxide fzf eza bat fd ripgrep git-delta lazygit  # macOS
 ```
 
 The original `.zshrc.backup` allows full recovery if anything goes wrong.
@@ -1008,7 +1100,7 @@ configured terminal makes possible.*
   50,000-line buffer and zero input delay make a tangible
   difference when reviewing long model outputs.
 - Directory navigation is a solved problem in Zsh. Between
-  `cdpath`, `auto_pushd`, and `autojump`, there is no reason to
+  `cdpath`, `auto_pushd`, and `zoxide`, there is no reason to
   type full paths.
 - The prompt is an information display, not decoration. Showing
   git branch and exit status prevents real errors.
@@ -1039,6 +1131,12 @@ configured terminal makes possible.*
 - Kitty's `background_image` setting accepts an absolute path.
   If the image file moves, Kitty starts with a black background
   and no error message.
+- Aliasing `cat` to `bat` is convenient interactively but
+  changes output for any script that calls `cat` from the same
+  shell. Pipelines that parse cat output (e.g.,
+  `cat file | head`) can break if `bat` decides to add headers.
+  Keep `bat --style=plain --paging=never` in the alias to
+  minimise the divergence.
 
 ## Limitations
 
@@ -1046,8 +1144,10 @@ configured terminal makes possible.*
   Ubuntu 22.04. Other distributions may require different
   plugin paths or package names.
 - The `.zshrc` includes hardcoded paths (e.g.,
-  `/opt/miniconda3`, `/home/z/.autojump`) that will not work
-  on other machines without editing.
+  `/opt/miniconda3`, plugin install directories) that will not
+  work on other machines without editing. The `$PRJ_ROOT`
+  pattern shown above for project paths should be extended to
+  these as well.
 - The Kitty configuration references a background image at an
   absolute path that is specific to the original machine.
 - Plugin loading adds startup latency. For remote servers where
@@ -1095,9 +1195,11 @@ and consistent vi-mode keybindings across all tools via
 adding something new, the placement is clear.
 
 For those starting from a default terminal setup, focusing on
-four things first is recommended: a Nerd Font for icon support,
-`cdpath` for directory navigation, `fzf` for fuzzy file finding,
-and `.inputrc` for vi-mode consistency. These changes make the
+five things first is recommended: a Nerd Font for icon support,
+`cdpath` plus `zoxide` for directory navigation, `fzf` for
+fuzzy file finding, the modern CLI replacements (`eza`, `bat`,
+`fd`, `ripgrep`, `delta`) for everyday display and search, and
+`.inputrc` for vi-mode consistency. These changes make the
 largest difference in daily workflows.
 
 **Main takeaways:**
@@ -1124,6 +1226,25 @@ largest difference in daily workflows.
 - [Setting Up Neovim for Data Science
   Development](/posts/12-configneovim/): the editor layer that
   sits on top of this terminal configuration
+- [The Workflow Construct](/posts/52-workflow-construct/): the
+  layered architecture this post instantiates at the Shell layer
+- [Modern CLI Replacements](/posts/53-modern-cli-replacements/):
+  the full reference for `eza`, `bat`, `fd`, `zoxide`, `delta`,
+  `lazygit`, with installation, aliases, and per-tool failure
+  modes
+- [Secrets Management for Data Scientists](/posts/55-secrets-management/):
+  the three-tier scheme (`pass`, AWS IAM Identity Center,
+  `gitleaks`) that supersedes the `~/.env` approach used here
+- [zzgit: Interactive Git Staging with Secret
+  Scanning](/posts/49-zzgit/): the production version of the
+  `gz` function, with `gitleaks` integration and an fzf-driven
+  hunk picker
+- [LLM-Augmented Editing](/posts/60-llm-augmented-editing/):
+  how the shell layer described here integrates with Claude
+  Code and similar tools
+- [Migrating Off Dropbox](/posts/64-migrating-off-dropbox/):
+  the rationale for the `$PRJ_ROOT` indirection used in the
+  `cdpath` block
 
 **Key resources:**
 
@@ -1151,7 +1272,8 @@ largest difference in daily workflows.
 - macOS 10.15+ or Linux (Ubuntu 18.04+, Fedora 30+)
 - Zsh 5.0+, Git, Homebrew (macOS)
 - FiraCode Nerd Font Mono
-- Optional: `fzf`, `ripgrep`, `eza`, `autojump`, `trash-cli`
+- Optional: `fzf`, `ripgrep`, `fd`, `bat`, `eza`, `zoxide`,
+  `delta`, `lazygit`, `trash-cli`
 
 **Configuration file locations:**
 
@@ -1189,3 +1311,7 @@ I would enjoy hearing from you if:
 - You want to discuss R programming, data science, or reproducible research.
 - You have questions about anything in this tutorial.
 - You just want to say hello and connect.
+
+---
+*Rendered on 2026-05-10 at 17:10 PDT.*<br>
+*Source: ~/prj/qblog/posts/01-configtermzsh/configtermzsh/analysis/report/index.qmd*
