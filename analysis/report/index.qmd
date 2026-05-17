@@ -1,7 +1,5 @@
 ---
 title: "Configure the Command Line for Data Science Development"
-subtitle: "A opinionated setup for terminal (kitty, ghostty, wezterm), shell (zsh), and
-  productivity tools for everyday data science work"
 author: "Ronald 'Ryy' G. Thomas"
 date: "2026-02-16"
 categories: [shell, macos, git, neovim]
@@ -21,7 +19,7 @@ format:
     code-tools: false
 ---
 
-![A terminal screen reflected on a polished desk.](media/images/hero.jpg){.img-fluid width=80%}
+![A terminal screen reflected on a polished desk.](media/images/hero.jpg){.img-fluid width=80% fig-align="center"}
 
 # Introduction
 
